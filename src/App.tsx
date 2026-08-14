@@ -6,6 +6,7 @@ import Progress from './screens/Progress'
 import Settings from './screens/Settings'
 import { seedDatabaseIfEmpty } from './db/seed'
 import { requestPersistentStorage } from './lib/storage'
+import { SessionDetailProvider } from './context/SessionDetailContext'
 
 type Tab = 'today' | 'plan' | 'log' | 'progress' | 'settings'
 
@@ -103,11 +104,13 @@ function App() {
   return (
     <div className="mx-auto flex h-full max-w-md flex-col bg-bg text-ink">
       <div className="flex-1 overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom))]">
-        {activeTab === 'today' && <Today />}
-        {activeTab === 'plan' && <Plan />}
-        {activeTab === 'log' && <Log />}
-        {activeTab === 'progress' && <Progress />}
-        {activeTab === 'settings' && <Settings />}
+        <SessionDetailProvider>
+          {activeTab === 'today' && <Today />}
+          {activeTab === 'plan' && <Plan />}
+          {activeTab === 'log' && <Log />}
+          {activeTab === 'progress' && <Progress />}
+          {activeTab === 'settings' && <Settings />}
+        </SessionDetailProvider>
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full max-w-md border-t border-border bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">

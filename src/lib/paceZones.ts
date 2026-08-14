@@ -59,3 +59,18 @@ export function computePaceSecPerKm(distanceKm: number, durationSeconds: number)
   if (distanceKm <= 0) return 0
   return durationSeconds / distanceKm
 }
+
+/** Rough duration estimate for a session, based on the midpoint of the easy pace range. */
+export function estimateSessionDurationMinutes(distanceKm: number, zones: PaceZones): number {
+  return (distanceKm * ((zones.easyPaceMinSecPerKm + zones.easyPaceMaxSecPerKm) / 2)) / 60
+}
+
+/** Describes how an actual pace compares to a reference pace, e.g. "12s/km faster than target". */
+export function formatPaceDelta(actualSecPerKm: number, referenceSecPerKm: number, referenceLabel = 'target'): string {
+  const delta = actualSecPerKm - referenceSecPerKm
+  if (Math.abs(delta) < 1) return `on ${referenceLabel} pace`
+  const mins = Math.floor(Math.abs(delta) / 60)
+  const secs = Math.round(Math.abs(delta) % 60)
+  const formatted = mins > 0 ? `${mins}:${String(secs).padStart(2, '0')}/km` : `${secs}s/km`
+  return `${formatted} ${delta > 0 ? 'slower' : 'faster'} than ${referenceLabel}`
+}

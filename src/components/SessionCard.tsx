@@ -1,7 +1,8 @@
-import { formatPace, formatPaceRange } from '../lib/paceZones'
+import { estimateSessionDurationMinutes, formatPace, formatPaceRange } from '../lib/paceZones'
+import { useSessionDetail } from '../context/SessionDetailContext'
 import type { PaceZones, Session, SessionType } from '../types'
 
-const SESSION_TYPE_LABELS: Record<SessionType, string> = {
+export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   easy: 'Easy run',
   long: 'Long run',
   tempo: 'Tempo',
@@ -27,7 +28,7 @@ const STATUS_BADGE_LABELS: Record<Session['status'], string> = {
   handled: 'Adjusted',
 }
 
-function paceGuidanceFor(session: Session, zones: PaceZones): string {
+export function paceGuidanceFor(session: Session, zones: PaceZones): string {
   switch (session.type) {
     case 'easy':
     case 'long':
@@ -50,13 +51,16 @@ interface SessionCardProps {
 }
 
 export default function SessionCard({ session, zones, onLog }: SessionCardProps) {
-  const estimatedMinutes =
-    (session.plannedDistanceKm * ((zones.easyPaceMinSecPerKm + zones.easyPaceMaxSecPerKm) / 2)) / 60
+  const { openSessionDetail } = useSessionDetail()
+  const estimatedMinutes = estimateSessionDurationMinutes(session.plannedDistanceKm, zones)
   const showFuelingReminder = session.type === 'long' && estimatedMinutes > 90
   const canLog = session.type !== 'rest' && session.status !== 'completed' && session.status !== 'skipped'
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
+    <div
+      onClick={() => openSessionDetail(session)}
+      className="rounded-2xl border border-border bg-surface p-4"
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wide text-ink-faint">{SESSION_TYPE_LABELS[session.type]}</p>
@@ -91,7 +95,10 @@ export default function SessionCard({ session, zones, onLog }: SessionCardProps)
 
       {canLog && onLog && (
         <button
-          onClick={() => onLog(session)}
+          onClick={(e) => {
+            e.stopPropagation()
+            onLog(session)
+          }}
           className="mt-4 w-full rounded-xl bg-accent py-3 text-base font-semibold text-accent-fg"
         >
           Log this run

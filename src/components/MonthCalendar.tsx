@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { addDays, parseISODate, startOfWeek, toISODate, todayISO } from '../lib/dates'
 import { findTimeOffForDate } from '../lib/timeOffDisplay'
 import { sessionDotColor } from '../lib/sessionColors'
+import { useSessionDetail } from '../context/SessionDetailContext'
 import { RACE_DATE } from '../db/seed'
 import type { Session, TimeOff } from '../types'
 
@@ -19,6 +20,7 @@ interface MonthCalendarProps {
 }
 
 export default function MonthCalendar({ sessions, timeOffEntries, selectedDate, onSelectDate }: MonthCalendarProps) {
+  const { openSessionDetail } = useSessionDetail()
   const today = todayISO()
   const initial = parseISODate(selectedDate)
   const [viewYear, setViewYear] = useState(initial.getFullYear())
@@ -73,7 +75,13 @@ export default function MonthCalendar({ sessions, timeOffEntries, selectedDate, 
           return (
             <button
               key={date}
-              onClick={() => onSelectDate(date)}
+              onClick={() => {
+                if (isSelected && session) {
+                  openSessionDetail(session)
+                } else {
+                  onSelectDate(date)
+                }
+              }}
               className={`flex flex-col items-center gap-0.5 rounded-lg border p-1.5 ${
                 isSelected
                   ? 'border-accent bg-accent/10'

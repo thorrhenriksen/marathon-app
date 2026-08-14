@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { addDays, formatDisplayDate, todayISO } from '../lib/dates'
 import { findTimeOffForDate, getWeekAdjustments } from '../lib/timeOffDisplay'
+import { useSessionDetail } from '../context/SessionDetailContext'
 import type { Session, SessionType, WeekMeta, TimeOff } from '../types'
 import AdjustmentSummaryModal from '../components/AdjustmentSummaryModal'
 
@@ -71,6 +72,7 @@ interface WeekCardProps {
   timeOffEntries: TimeOff[]
   onToggle: () => void
   onTapAdjusted: () => void
+  onTapSession: (session: Session) => void
 }
 
 function WeekCard({
@@ -82,6 +84,7 @@ function WeekCard({
   timeOffEntries,
   onToggle,
   onTapAdjusted,
+  onTapSession,
 }: WeekCardProps) {
   const weekEnd = addDays(week.startDate, 6)
   const completedCount = sessions.filter((s) => s.status === 'completed').length
@@ -143,9 +146,10 @@ function WeekCard({
             .map((session) => {
               const onTimeOff = !!findTimeOffForDate(session.date, timeOffEntries)
               return (
-                <div
+                <button
                   key={session.id}
-                  className={`flex items-center gap-3 rounded-lg ${onTimeOff ? 'bg-warning/10 px-2 py-1' : ''}`}
+                  onClick={() => onTapSession(session)}
+                  className={`flex items-center gap-3 rounded-lg text-left ${onTimeOff ? 'bg-warning/10 px-2 py-1' : ''}`}
                 >
                   <span className={`h-2 w-2 shrink-0 rounded-full ${DOT_COLORS[session.status]}`} />
                   <span className="w-9 shrink-0 text-[11px] uppercase text-ink-faint">
@@ -158,7 +162,7 @@ function WeekCard({
                   {session.type !== 'rest' && (
                     <span className="shrink-0 text-xs text-ink-faint">{session.plannedDistanceKm} km</span>
                   )}
-                </div>
+                </button>
               )
             })}
         </div>
@@ -169,6 +173,7 @@ function WeekCard({
 
 export default function Plan() {
   const today = todayISO()
+  const { openSessionDetail } = useSessionDetail()
 
   const weeks = useLiveQuery(() => db.weeks.orderBy('week').toArray(), [])
   const sessions = useLiveQuery(() => db.sessions.toArray(), [])
@@ -269,6 +274,7 @@ export default function Plan() {
                 timeOffEntries={timeOffEntries ?? []}
                 onToggle={() => toggleWeek(week.week)}
                 onTapAdjusted={() => handleTapAdjusted(week.week)}
+                onTapSession={openSessionDetail}
               />
             ))}
           </div>

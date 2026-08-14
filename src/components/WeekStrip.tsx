@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from 'react'
 import { addDays, parseISODate, todayISO } from '../lib/dates'
 import { findTimeOffForDate } from '../lib/timeOffDisplay'
 import { sessionDotColor } from '../lib/sessionColors'
+import { useSessionDetail } from '../context/SessionDetailContext'
 import type { Session, TimeOff, WeekMeta } from '../types'
 
 const WEEKDAY_FMT = new Intl.DateTimeFormat('en-GB', { weekday: 'short' })
@@ -16,6 +17,7 @@ interface WeekStripProps {
 
 export default function WeekStrip({ weeks, sessions, timeOffEntries, selectedDate, onSelectDate }: WeekStripProps) {
   const currentWeekPageRef = useRef<HTMLDivElement>(null)
+  const { openSessionDetail } = useSessionDetail()
   const today = todayISO()
 
   useLayoutEffect(() => {
@@ -41,7 +43,13 @@ export default function WeekStrip({ weeks, sessions, timeOffEntries, selectedDat
               return (
                 <button
                   key={date}
-                  onClick={() => onSelectDate(date)}
+                  onClick={() => {
+                    if (isSelected && session) {
+                      openSessionDetail(session)
+                    } else {
+                      onSelectDate(date)
+                    }
+                  }}
                   className={`flex flex-col items-center rounded-xl border p-2 text-center ${
                     isSelected
                       ? 'border-accent bg-accent/10'
