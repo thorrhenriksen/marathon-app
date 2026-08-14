@@ -71,6 +71,7 @@ export interface Settings {
   preferredDays: number[]
   units: 'km'
   hasRequestedPersistence: boolean
+  theme: 'light' | 'dark' | 'system'
 }
 
 export type Phase = 1 | 2 | 3 | 4

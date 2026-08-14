@@ -28,11 +28,11 @@ const SESSION_TYPE_LABELS: Record<SessionType, string> = {
 const WEEKDAY_FMT = new Intl.DateTimeFormat('en-GB', { weekday: 'short' })
 
 const STATUS_BADGE_STYLES: Record<Session['status'], string> = {
-  planned: 'bg-neutral-800 text-neutral-400',
-  completed: 'bg-emerald-500/20 text-emerald-400',
-  skipped: 'bg-red-500/20 text-red-400',
-  moved: 'bg-amber-500/20 text-amber-400',
-  handled: 'bg-sky-500/20 text-sky-400',
+  planned: 'bg-surface-inset text-ink-muted',
+  completed: 'bg-accent/20 text-accent',
+  skipped: 'bg-danger/20 text-danger',
+  moved: 'bg-warning/20 text-warning',
+  handled: 'bg-info/20 text-info',
 }
 
 const STATUS_BADGE_LABELS: Record<Session['status'], string> = {
@@ -44,11 +44,11 @@ const STATUS_BADGE_LABELS: Record<Session['status'], string> = {
 }
 
 const DOT_COLORS: Record<Session['status'], string> = {
-  planned: 'bg-neutral-600',
-  completed: 'bg-emerald-500',
-  skipped: 'bg-red-500',
-  moved: 'bg-amber-500',
-  handled: 'bg-sky-500',
+  planned: 'bg-ink-faint',
+  completed: 'bg-accent',
+  skipped: 'bg-danger',
+  moved: 'bg-warning',
+  handled: 'bg-info',
 }
 
 export default function Today() {
@@ -107,25 +107,25 @@ export default function Today() {
   return (
     <div className="flex flex-col gap-6 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
       {/* Race countdown */}
-      <div className="rounded-2xl border border-emerald-800/40 bg-gradient-to-br from-emerald-600/20 to-neutral-900 p-4">
-        <p className="text-xs uppercase tracking-widest text-emerald-400">London Marathon</p>
-        <p className="mt-1 text-3xl font-bold text-neutral-50">
+      <div className="rounded-2xl border border-accent/40 bg-gradient-to-br from-accent/20 to-surface p-4">
+        <p className="text-xs uppercase tracking-widest text-accent">London Marathon</p>
+        <p className="mt-1 text-3xl font-bold text-ink">
           {daysToRace > 0 ? `${daysToRace} days to go` : daysToRace === 0 ? 'Race day!' : 'Completed'}
         </p>
-        <p className="mt-1 text-sm text-neutral-400">{formatDisplayDateLong(RACE_DATE)}</p>
+        <p className="mt-1 text-sm text-ink-muted">{formatDisplayDateLong(RACE_DATE)}</p>
       </div>
 
       {/* Today's session */}
       <section>
-        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-neutral-500">Today</h2>
+        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">Today</h2>
         {todaySession ? (
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
+          <div className="rounded-2xl border border-border bg-surface p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-wide text-neutral-500">
+                <p className="text-xs uppercase tracking-wide text-ink-faint">
                   {SESSION_TYPE_LABELS[todaySession.type]}
                 </p>
-                <p className="mt-1 text-2xl font-semibold text-neutral-50">
+                <p className="mt-1 text-2xl font-semibold text-ink">
                   {todaySession.type === 'rest' ? 'Rest day' : `${todaySession.plannedDistanceKm} km`}
                 </p>
               </div>
@@ -136,18 +136,18 @@ export default function Today() {
               </span>
             </div>
 
-            <p className="mt-2 text-sm text-neutral-300">{todaySession.description}</p>
+            <p className="mt-2 text-sm text-ink-muted">{todaySession.description}</p>
 
             {todaySession.type !== 'rest' && (
-              <p className="mt-2 text-sm text-neutral-400">
-                Target pace: <span className="text-neutral-200">{paceGuidanceFor(todaySession)}</span>
+              <p className="mt-2 text-sm text-ink-muted">
+                Target pace: <span className="text-ink">{paceGuidanceFor(todaySession)}</span>
               </p>
             )}
 
             {showFuelingReminder && (
-              <div className="mt-3 rounded-xl border border-amber-800/40 bg-amber-500/10 p-3">
-                <p className="text-sm font-medium text-amber-300">Fueling reminder</p>
-                <ul className="mt-1 list-disc pl-4 text-sm text-amber-200/90">
+              <div className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-3">
+                <p className="text-sm font-medium text-warning">Fueling reminder</p>
+                <ul className="mt-1 list-disc pl-4 text-sm text-warning">
                   <li>Take a gel every 30-40 min starting around minute 40</li>
                   <li>Sip fluids regularly throughout</li>
                 </ul>
@@ -157,17 +157,17 @@ export default function Today() {
             {canLogToday && (
               <button
                 onClick={() => setLoggingSession(todaySession)}
-                className="mt-4 w-full rounded-xl bg-emerald-500 py-3 text-base font-semibold text-neutral-950"
+                className="mt-4 w-full rounded-xl bg-accent py-3 text-base font-semibold text-accent-fg"
               >
                 Log this run
               </button>
             )}
             {todaySession.status === 'completed' && (
-              <p className="mt-4 text-center text-sm font-medium text-emerald-400">Logged</p>
+              <p className="mt-4 text-center text-sm font-medium text-accent">Logged</p>
             )}
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-neutral-800 p-4 text-center text-sm text-neutral-500">
+          <div className="rounded-2xl border border-dashed border-border p-4 text-center text-sm text-ink-faint">
             No session scheduled today.
           </div>
         )}
@@ -175,9 +175,9 @@ export default function Today() {
 
       {/* This week at a glance */}
       <section>
-        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-neutral-500">This week</h2>
+        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">This week</h2>
         {currentWeekMeta && (
-          <p className="mb-2 text-xs text-neutral-500">
+          <p className="mb-2 text-xs text-ink-faint">
             Week {currentWeekMeta.week} · {currentWeekMeta.phaseLabel} · target {currentWeekMeta.targetVolumeKm} km
           </p>
         )}
@@ -189,16 +189,16 @@ export default function Today() {
               <div
                 key={date}
                 className={`flex flex-col items-center rounded-xl border p-2 text-center ${
-                  isToday ? 'border-emerald-600 bg-emerald-500/10' : 'border-neutral-800 bg-neutral-900'
+                  isToday ? 'border-accent bg-accent/10' : 'border-border bg-surface'
                 }`}
               >
-                <span className="text-[10px] uppercase text-neutral-500">
+                <span className="text-[10px] uppercase text-ink-faint">
                   {WEEKDAY_FMT.format(parseISODate(date))}
                 </span>
                 <span
-                  className={`mt-1 h-2 w-2 rounded-full ${session ? DOT_COLORS[session.status] : 'bg-neutral-800'}`}
+                  className={`mt-1 h-2 w-2 rounded-full ${session ? DOT_COLORS[session.status] : 'bg-surface-inset'}`}
                 />
-                <span className="mt-1 text-[11px] text-neutral-400">
+                <span className="mt-1 text-[11px] text-ink-muted">
                   {session && session.type !== 'rest' ? `${session.plannedDistanceKm}k` : ''}
                 </span>
               </div>

@@ -12,6 +12,7 @@ const settings: Settings = {
   preferredDays: [2, 4, 6, 0], // Tue, Thu, Sat, Sun
   units: 'km',
   hasRequestedPersistence: false,
+  theme: 'system',
 }
 
 describe('adjustmentEngine', () => {

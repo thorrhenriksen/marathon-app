@@ -13,6 +13,7 @@ import { computeAdjustment, type AdjustmentPreview } from '../lib/adjustmentEngi
 import { resetToOriginalPlan } from '../db/seed'
 import type { Session, TimeOff, TimeOffLabel } from '../types'
 import Modal from '../components/Modal'
+import { useTheme } from '../context/ThemeContext'
 
 const DAY_OPTIONS: { value: number; label: string }[] = [
   { value: 1, label: 'Mon' },
@@ -38,20 +39,51 @@ interface UndoSnapshot {
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
-      <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-neutral-500">{title}</h2>
+    <section className="rounded-2xl border border-border bg-surface p-4">
+      <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">{title}</h2>
       {children}
     </section>
   )
 }
 
 const inputClass =
-  'w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-100'
+  'w-full rounded-xl border border-border bg-surface-inset px-3 py-2 text-sm text-ink'
 const primaryButtonClass =
-  'rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-neutral-950'
+  'rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-fg'
 const secondaryButtonClass =
-  'rounded-full border border-neutral-700 px-4 py-2 text-sm font-medium text-neutral-300'
-const dangerButtonClass = 'rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-neutral-950'
+  'rounded-full border border-border px-4 py-2 text-sm font-medium text-ink-muted'
+const dangerButtonClass = 'rounded-full bg-danger px-4 py-2 text-sm font-semibold text-accent-fg'
+
+const THEME_OPTIONS: { value: 'light' | 'dark' | 'system'; label: string }[] = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' },
+]
+
+function ThemeSection() {
+  const { theme, setTheme } = useTheme()
+
+  return (
+    <SectionCard title="Appearance">
+      <div className="flex gap-2">
+        {THEME_OPTIONS.map((option) => {
+          const active = theme === option.value
+          return (
+            <button
+              key={option.value}
+              onClick={() => setTheme(option.value)}
+              className={`flex-1 rounded-full px-3 py-2 text-xs font-medium ${
+                active ? 'bg-accent text-accent-fg' : 'border border-border text-ink-muted'
+              }`}
+            >
+              {option.label}
+            </button>
+          )
+        })}
+      </div>
+    </SectionCard>
+  )
+}
 
 function GoalSection() {
   const goal = useLiveQuery(() => db.goals.get('goal'), [])
@@ -89,23 +121,23 @@ function GoalSection() {
           Save
         </button>
       </div>
-      {saved && <p className="mt-2 text-xs text-emerald-400">Saved.</p>}
+      {saved && <p className="mt-2 text-xs text-accent">Saved.</p>}
 
       {zones && (
-        <div className="mt-4 flex flex-col gap-2 border-t border-neutral-800 pt-3 text-sm">
+        <div className="mt-4 flex flex-col gap-2 border-t border-border pt-3 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-neutral-400">Marathon pace</span>
-            <span className="font-medium text-neutral-100">{formatPace(zones.marathonPaceSecPerKm)}</span>
+            <span className="text-ink-muted">Marathon pace</span>
+            <span className="font-medium text-ink">{formatPace(zones.marathonPaceSecPerKm)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-neutral-400">Easy pace</span>
-            <span className="font-medium text-neutral-100">
+            <span className="text-ink-muted">Easy pace</span>
+            <span className="font-medium text-ink">
               {formatPaceRange(zones.easyPaceMinSecPerKm, zones.easyPaceMaxSecPerKm)}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-neutral-400">Tempo pace</span>
-            <span className="font-medium text-neutral-100">
+            <span className="text-ink-muted">Tempo pace</span>
+            <span className="font-medium text-ink">
               {formatPaceRange(zones.tempoPaceMinSecPerKm, zones.tempoPaceMaxSecPerKm)}
             </span>
           </div>
@@ -198,7 +230,7 @@ function TimeOffSection() {
   return (
     <SectionCard title="Time off">
       {undoSnapshot && (
-        <div className="mb-3 flex items-center justify-between rounded-xl border border-sky-800/40 bg-sky-500/10 px-3 py-2 text-xs text-sky-300">
+        <div className="mb-3 flex items-center justify-between rounded-xl border border-info/40 bg-info/10 px-3 py-2 text-xs text-info">
           <span>Time off adjustment applied.</span>
           <button onClick={handleUndo} className="font-semibold underline">
             Undo
@@ -211,12 +243,12 @@ function TimeOffSection() {
           {timeOffEntries.map((entry) => (
             <div
               key={entry.id}
-              className="flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2 text-xs"
+              className="flex items-center justify-between rounded-xl border border-border bg-surface-inset px-3 py-2 text-xs"
             >
-              <span className="text-neutral-300">
+              <span className="text-ink-muted">
                 {formatDisplayDate(entry.startDate)} – {formatDisplayDate(entry.endDate)}
               </span>
-              <span className="text-neutral-500">{TIME_OFF_LABELS[entry.label]}</span>
+              <span className="text-ink-faint">{TIME_OFF_LABELS[entry.label]}</span>
             </div>
           ))}
         </div>
@@ -225,7 +257,7 @@ function TimeOffSection() {
       <div className="flex flex-col gap-2">
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="mb-1 block text-xs text-neutral-500">Start</label>
+            <label className="mb-1 block text-xs text-ink-faint">Start</label>
             <input
               type="date"
               value={startDate}
@@ -234,7 +266,7 @@ function TimeOffSection() {
             />
           </div>
           <div className="flex-1">
-            <label className="mb-1 block text-xs text-neutral-500">End</label>
+            <label className="mb-1 block text-xs text-ink-faint">End</label>
             <input
               type="date"
               value={endDate}
@@ -245,7 +277,7 @@ function TimeOffSection() {
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-neutral-500">Reason</label>
+          <label className="mb-1 block text-xs text-ink-faint">Reason</label>
           <select
             value={label}
             onChange={(e) => setLabel(e.target.value as TimeOffLabel)}
@@ -260,7 +292,7 @@ function TimeOffSection() {
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-neutral-500">Note (optional)</label>
+          <label className="mb-1 block text-xs text-ink-faint">Note (optional)</label>
           <input
             type="text"
             value={note}
@@ -269,7 +301,7 @@ function TimeOffSection() {
           />
         </div>
 
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {error && <p className="text-xs text-danger">{error}</p>}
 
         <button onClick={handlePreview} className={`${primaryButtonClass} mt-1`}>
           Preview adjustment
@@ -280,11 +312,11 @@ function TimeOffSection() {
         <Modal title="Confirm plan adjustment" onClose={handleCancelPreview}>
           <div className="flex flex-col gap-3">
             {preview.summary.length === 0 ? (
-              <p className="text-sm text-neutral-400">No sessions fall within this range.</p>
+              <p className="text-sm text-ink-muted">No sessions fall within this range.</p>
             ) : (
-              <ul className="flex flex-col gap-2 text-sm text-neutral-300">
+              <ul className="flex flex-col gap-2 text-sm text-ink-muted">
                 {preview.summary.map((line, i) => (
-                  <li key={i} className="rounded-lg border border-neutral-800 bg-neutral-950 p-2">
+                  <li key={i} className="rounded-lg border border-border bg-surface-inset p-2">
                     {line}
                   </li>
                 ))}
@@ -328,7 +360,7 @@ function PreferredDaysSection() {
               key={day.value}
               onClick={() => toggleDay(day.value)}
               className={`rounded-full px-3 py-2 text-xs font-medium ${
-                active ? 'bg-emerald-500 text-neutral-950' : 'border border-neutral-700 text-neutral-400'
+                active ? 'bg-accent text-accent-fg' : 'border border-border text-ink-muted'
               }`}
             >
               {day.label}
@@ -421,7 +453,7 @@ function BackupSection() {
           Import backup
           <input type="file" accept="application/json" onChange={handleImportChange} className="hidden" />
         </label>
-        {message && <p className="text-xs text-neutral-400">{message}</p>}
+        {message && <p className="text-xs text-ink-muted">{message}</p>}
       </div>
     </SectionCard>
   )
@@ -440,19 +472,19 @@ function ResetPlanSection() {
 
   return (
     <SectionCard title="Reset plan">
-      <p className="mb-3 text-xs text-neutral-500">
+      <p className="mb-3 text-xs text-ink-faint">
         Resets your training plan and completion status back to the original 36-week schedule. Logged
         runs, your goal, time-off history, and preferences are not affected.
       </p>
       <button onClick={() => setShowConfirm(true)} className={dangerButtonClass}>
         Reset to original plan
       </button>
-      {resetDone && <p className="mt-2 text-xs text-emerald-400">Plan reset.</p>}
+      {resetDone && <p className="mt-2 text-xs text-accent">Plan reset.</p>}
 
       {showConfirm && (
         <Modal title="Reset to original plan?" onClose={() => setShowConfirm(false)}>
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-neutral-300">
+            <p className="text-sm text-ink-muted">
               This replaces all planned sessions and week data with the original 36-week schedule. Any
               moves, skips, or re-entry weeks from time-off adjustments will be lost. This cannot be
               undone.
@@ -475,7 +507,8 @@ function ResetPlanSection() {
 export default function Settings() {
   return (
     <div className="flex flex-col gap-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
-      <h1 className="text-lg font-semibold text-neutral-100">Settings</h1>
+      <h1 className="text-lg font-semibold text-ink">Settings</h1>
+      <ThemeSection />
       <GoalSection />
       <TimeOffSection />
       <PreferredDaysSection />

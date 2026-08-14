@@ -16,12 +16,15 @@ import { addDays, todayISO } from '../lib/dates'
 import { formatPace } from '../lib/paceZones'
 import type { Run, Session, WeekMeta } from '../types'
 
-const GRID_COLOR = '#262626'
-const AXIS_COLOR = '#737373'
-const PLANNED_COLOR = '#525252'
-const ACTUAL_COLOR = '#10b981'
-const LONG_RUN_COLOR = '#0ea5e9'
-const PACE_COLOR = '#f59e0b'
+const GRID_COLOR = 'var(--chart-grid)'
+const AXIS_COLOR = 'var(--chart-axis)'
+const PLANNED_COLOR = 'var(--chart-planned)'
+const ACTUAL_COLOR = 'var(--chart-actual)'
+const LONG_RUN_COLOR = 'var(--chart-long-run)'
+const PACE_COLOR = 'var(--chart-pace)'
+const TOOLTIP_BG = 'var(--chart-tooltip-bg)'
+const TOOLTIP_BORDER = 'var(--chart-tooltip-border)'
+const TOOLTIP_TEXT = 'var(--chart-tooltip-text)'
 
 interface WeeklyVolumePoint {
   label: string
@@ -140,9 +143,9 @@ function computeAdherence(sessions: Session[], today: string): number {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
-      <p className="text-[11px] uppercase tracking-wide text-neutral-500">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-neutral-50">{value}</p>
+    <div className="rounded-2xl border border-border bg-surface p-4">
+      <p className="text-[11px] uppercase tracking-wide text-ink-faint">{label}</p>
+      <p className="mt-1 text-xl font-semibold text-ink">{value}</p>
     </div>
   )
 }
@@ -153,7 +156,7 @@ function Legend({ items }: { items: { color: string; label: string }[] }) {
       {items.map((item) => (
         <div key={item.label} className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
-          <span className="text-[11px] text-neutral-500">{item.label}</span>
+          <span className="text-[11px] text-ink-faint">{item.label}</span>
         </div>
       ))}
     </div>
@@ -195,7 +198,7 @@ export default function Progress() {
   if (!weeks || !sessions || !runs) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-neutral-500">Loading progress…</p>
+        <p className="text-sm text-ink-faint">Loading progress…</p>
       </div>
     )
   }
@@ -204,7 +207,7 @@ export default function Progress() {
 
   return (
     <div className="flex flex-col gap-6 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
-      <h1 className="text-lg font-semibold text-neutral-100">Progress</h1>
+      <h1 className="text-lg font-semibold text-ink">Progress</h1>
 
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Total distance" value={`${totalKm.toFixed(1)} km`} />
@@ -216,16 +219,16 @@ export default function Progress() {
       <StatCard label="Best streak" value={`${streaks.best} ${streaks.best === 1 ? 'week' : 'weeks'}`} />
 
       {!hasRuns ? (
-        <div className="rounded-2xl border border-dashed border-neutral-800 p-6 text-center text-sm text-neutral-500">
+        <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-ink-faint">
           No runs logged yet. Charts will appear here once you start logging runs.
         </div>
       ) : (
         <>
           <section>
-            <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-neutral-500">
+            <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">
               Weekly volume
             </h2>
-            <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
+            <div className="rounded-2xl border border-border bg-surface p-4">
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={weeklyVolume}>
                   <CartesianGrid stroke={GRID_COLOR} vertical={false} />
@@ -243,8 +246,8 @@ export default function Progress() {
                     width={28}
                   />
                   <Tooltip
-                    contentStyle={{ background: '#171717', border: '1px solid #262626', fontSize: 12 }}
-                    labelStyle={{ color: '#e5e5e5' }}
+                    contentStyle={{ background: TOOLTIP_BG, border: `1px solid ${TOOLTIP_BORDER}`, fontSize: 12 }}
+                    labelStyle={{ color: TOOLTIP_TEXT }}
                     formatter={(value, name) => [`${value} km`, name === 'planned' ? 'Planned' : 'Actual']}
                   />
                   <Bar dataKey="planned" fill={PLANNED_COLOR} radius={[3, 3, 0, 0]} />
@@ -256,10 +259,10 @@ export default function Progress() {
           </section>
 
           <section>
-            <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-neutral-500">
+            <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">
               Long run progression
             </h2>
-            <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
+            <div className="rounded-2xl border border-border bg-surface p-4">
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={longRunProgression}>
                   <CartesianGrid stroke={GRID_COLOR} vertical={false} />
@@ -277,8 +280,8 @@ export default function Progress() {
                     width={28}
                   />
                   <Tooltip
-                    contentStyle={{ background: '#171717', border: '1px solid #262626', fontSize: 12 }}
-                    labelStyle={{ color: '#e5e5e5' }}
+                    contentStyle={{ background: TOOLTIP_BG, border: `1px solid ${TOOLTIP_BORDER}`, fontSize: 12 }}
+                    labelStyle={{ color: TOOLTIP_TEXT }}
                     formatter={(value, name) => [`${value} km`, name === 'planned' ? 'Planned' : 'Actual']}
                   />
                   <Line
@@ -304,15 +307,15 @@ export default function Progress() {
           </section>
 
           <section>
-            <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-neutral-500">
+            <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">
               Pace trend (easy runs)
             </h2>
             {paceTrend.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-neutral-800 p-4 text-center text-sm text-neutral-500">
+              <div className="rounded-2xl border border-dashed border-border p-4 text-center text-sm text-ink-faint">
                 No easy runs logged yet.
               </div>
             ) : (
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
+              <div className="rounded-2xl border border-border bg-surface p-4">
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={paceTrend}>
                     <CartesianGrid stroke={GRID_COLOR} vertical={false} />
@@ -331,8 +334,8 @@ export default function Progress() {
                       tickFormatter={(value: number) => formatPace(value)}
                     />
                     <Tooltip
-                      contentStyle={{ background: '#171717', border: '1px solid #262626', fontSize: 12 }}
-                      labelStyle={{ color: '#e5e5e5' }}
+                      contentStyle={{ background: TOOLTIP_BG, border: `1px solid ${TOOLTIP_BORDER}`, fontSize: 12 }}
+                      labelStyle={{ color: TOOLTIP_TEXT }}
                       formatter={(value) => [formatPace(Number(value)), 'Pace']}
                     />
                     <Line

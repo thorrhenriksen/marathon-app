@@ -13,14 +13,14 @@ export default function Modal({ title, onClose, children }: ModalProps) {
       onClick={onClose}
     >
       <div
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-neutral-900 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:rounded-2xl"
+        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-neutral-100">{title}</h2>
+          <h2 className="text-lg font-semibold text-ink">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded-full p-2 text-neutral-400 hover:text-neutral-100"
+            className="rounded-full p-2 text-ink-muted hover:text-ink"
             aria-label="Close"
           >
             ✕

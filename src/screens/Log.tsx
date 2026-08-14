@@ -58,24 +58,24 @@ function groupByMonth(runs: Run[]): MonthGroup[] {
 
 function RunRow({ run }: { run: Run }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-3">
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
       <div className="flex w-14 shrink-0 flex-col items-start">
-        <span className="text-[11px] uppercase text-neutral-500">
+        <span className="text-[11px] uppercase text-ink-faint">
           {formatDisplayDate(run.date).slice(0, 3)}
         </span>
-        <span className="text-xs font-medium text-neutral-300">{TYPE_LABELS[run.type]}</span>
+        <span className="text-xs font-medium text-ink-muted">{TYPE_LABELS[run.type]}</span>
       </div>
       <div className="flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-base font-semibold text-neutral-50">{run.distanceKm} km</span>
-          <span className="text-xs text-neutral-500">{formatDuration(run.durationSeconds)}</span>
+          <span className="text-base font-semibold text-ink">{run.distanceKm} km</span>
+          <span className="text-xs text-ink-faint">{formatDuration(run.durationSeconds)}</span>
         </div>
-        <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-500">
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-ink-faint">
           <span>{formatPace(run.paceSecPerKm)}</span>
           <span>·</span>
           <span>Effort {run.effort}/10</span>
         </div>
-        {run.note && <p className="mt-1 truncate text-xs text-neutral-400">{run.note}</p>}
+        {run.note && <p className="mt-1 truncate text-xs text-ink-muted">{run.note}</p>}
       </div>
     </div>
   )
@@ -88,7 +88,7 @@ export default function Log() {
   if (!runs) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-neutral-500">Loading log…</p>
+        <p className="text-sm text-ink-faint">Loading log…</p>
       </div>
     )
   }
@@ -98,27 +98,27 @@ export default function Log() {
   return (
     <div className="flex flex-col gap-6 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-neutral-100">Log</h1>
+        <h1 className="text-lg font-semibold text-ink">Log</h1>
         <button
           onClick={() => setShowAddForm(true)}
-          className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-neutral-950"
+          className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-fg"
         >
           + Add run
         </button>
       </div>
 
       {groups.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-neutral-800 p-6 text-center text-sm text-neutral-500">
+        <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-ink-faint">
           No runs logged yet. Tap "Add run" to log your first one.
         </div>
       ) : (
         groups.map((group) => (
           <section key={group.key}>
             <div className="mb-2 flex items-baseline justify-between">
-              <h2 className="text-sm font-medium uppercase tracking-wide text-neutral-500">
+              <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">
                 {monthLabel(group.key)}
               </h2>
-              <p className="text-xs text-neutral-500">
+              <p className="text-xs text-ink-faint">
                 {group.totalKm.toFixed(1)} km · {formatDuration(group.totalSeconds)} · {group.runs.length}{' '}
                 {group.runs.length === 1 ? 'run' : 'runs'}
               </p>

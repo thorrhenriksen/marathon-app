@@ -15,40 +15,40 @@ const SESSION_TYPE_LABELS: Record<SessionType, string> = {
 }
 
 const DOT_COLORS: Record<Session['status'], string> = {
-  planned: 'bg-neutral-700',
-  completed: 'bg-emerald-500',
-  skipped: 'bg-red-500',
-  moved: 'bg-amber-500',
-  handled: 'bg-sky-500',
+  planned: 'bg-ink-faint',
+  completed: 'bg-accent',
+  skipped: 'bg-danger',
+  moved: 'bg-warning',
+  handled: 'bg-info',
 }
 
 function weekBadges(week: WeekMeta): { label: string; className: string }[] {
   const badges: { label: string; className: string }[] = []
   if (week.isRaceWeek) {
-    badges.push({ label: 'Race day', className: 'bg-emerald-500 text-neutral-950' })
+    badges.push({ label: 'Race day', className: 'bg-accent text-accent-fg' })
   }
   if (week.isHalfMarathonWeek) {
-    badges.push({ label: 'Half marathon', className: 'bg-sky-500/20 text-sky-300' })
+    badges.push({ label: 'Half marathon', className: 'bg-info/20 text-info' })
   }
   if (week.isTaper && !week.isRaceWeek) {
-    badges.push({ label: 'Taper', className: 'bg-violet-500/20 text-violet-300' })
+    badges.push({ label: 'Taper', className: 'bg-highlight/20 text-highlight' })
   }
   if (week.isCutback) {
-    badges.push({ label: 'Cutback', className: 'bg-amber-500/20 text-amber-300' })
+    badges.push({ label: 'Cutback', className: 'bg-warning/20 text-warning' })
   }
   if (week.isHolidayMaintenance) {
-    badges.push({ label: 'Holiday maintenance', className: 'bg-neutral-700 text-neutral-300' })
+    badges.push({ label: 'Holiday maintenance', className: 'bg-surface-inset text-ink-muted' })
   }
   return badges
 }
 
 function weekCardStyle(week: WeekMeta, isCurrent: boolean): string {
-  if (week.isRaceWeek) return 'border-emerald-500 bg-emerald-500/10'
-  if (week.isHalfMarathonWeek) return 'border-sky-600/60 bg-sky-500/5'
-  if (isCurrent) return 'border-emerald-700/60 bg-neutral-900'
-  if (week.isTaper) return 'border-violet-800/40 bg-neutral-900'
-  if (week.isCutback || week.isHolidayMaintenance) return 'border-amber-800/30 bg-neutral-900'
-  return 'border-neutral-800 bg-neutral-900'
+  if (week.isRaceWeek) return 'border-accent bg-accent/10'
+  if (week.isHalfMarathonWeek) return 'border-info/60 bg-info/5'
+  if (isCurrent) return 'border-accent/60 bg-surface'
+  if (week.isTaper) return 'border-highlight/40 bg-surface'
+  if (week.isCutback || week.isHolidayMaintenance) return 'border-warning/30 bg-surface'
+  return 'border-border bg-surface'
 }
 
 interface WeekCardProps {
@@ -70,22 +70,22 @@ function WeekCard({ week, sessions, isCurrent, isExpanded, onToggle }: WeekCardP
       <button onClick={onToggle} className="flex w-full items-center justify-between gap-3 text-left">
         <div>
           <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-neutral-100">Week {week.week}</p>
+            <p className="text-sm font-semibold text-ink">Week {week.week}</p>
             {isCurrent && (
-              <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-neutral-950">
+              <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-accent-fg">
                 CURRENT
               </span>
             )}
           </div>
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs text-ink-faint">
             {formatDisplayDate(week.startDate)} – {formatDisplayDate(weekEnd)} · {week.targetVolumeKm} km
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="text-xs text-neutral-500">
+          <span className="text-xs text-ink-faint">
             {completedCount}/{trackedCount}
           </span>
-          <span className={`text-neutral-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▾</span>
+          <span className={`text-ink-faint transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▾</span>
         </div>
       </button>
 
@@ -100,22 +100,22 @@ function WeekCard({ week, sessions, isCurrent, isExpanded, onToggle }: WeekCardP
       )}
 
       {isExpanded && (
-        <div className="mt-3 flex flex-col gap-2 border-t border-neutral-800 pt-3">
+        <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
           {sessions
             .slice()
             .sort((a, b) => (a.date < b.date ? -1 : 1))
             .map((session) => (
               <div key={session.id} className="flex items-center gap-3">
                 <span className={`h-2 w-2 shrink-0 rounded-full ${DOT_COLORS[session.status]}`} />
-                <span className="w-9 shrink-0 text-[11px] uppercase text-neutral-500">
+                <span className="w-9 shrink-0 text-[11px] uppercase text-ink-faint">
                   {formatDisplayDate(session.date).slice(0, 3)}
                 </span>
-                <span className="w-14 shrink-0 text-xs font-medium text-neutral-300">
+                <span className="w-14 shrink-0 text-xs font-medium text-ink-muted">
                   {SESSION_TYPE_LABELS[session.type]}
                 </span>
-                <span className="flex-1 truncate text-xs text-neutral-400">{session.description}</span>
+                <span className="flex-1 truncate text-xs text-ink-muted">{session.description}</span>
                 {session.type !== 'rest' && (
-                  <span className="shrink-0 text-xs text-neutral-500">{session.plannedDistanceKm} km</span>
+                  <span className="shrink-0 text-xs text-ink-faint">{session.plannedDistanceKm} km</span>
                 )}
               </div>
             ))}
@@ -186,18 +186,18 @@ export default function Plan() {
   if (!weeks || !sessions) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-neutral-500">Loading plan…</p>
+        <p className="text-sm text-ink-faint">Loading plan…</p>
       </div>
     )
   }
 
   return (
     <div className="flex flex-col gap-6 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
-      <h1 className="text-lg font-semibold text-neutral-100">36-week plan</h1>
+      <h1 className="text-lg font-semibold text-ink">36-week plan</h1>
 
       {weeksByPhase.map(([phase, phaseWeeks]) => (
         <section key={phase}>
-          <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-neutral-500">
+          <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">
             Phase {phase} · {phaseWeeks[0].phaseLabel}
           </h2>
           <div className="flex flex-col gap-2">

@@ -57,13 +57,13 @@ export function generatePlan(): { sessions: Session[]; weeks: WeekMeta[] } {
 
 /** Seeds the database with the default plan, goal, and settings if empty. */
 export async function seedDatabaseIfEmpty(): Promise<void> {
-  const [sessionCount, goalCount, settingsCount] = await Promise.all([
-    db.sessions.count(),
-    db.goals.count(),
-    db.settings.count(),
-  ])
-
   await db.transaction('rw', db.sessions, db.weeks, db.goals, db.settings, async () => {
+    const [sessionCount, goalCount, settingsCount] = await Promise.all([
+      db.sessions.count(),
+      db.goals.count(),
+      db.settings.count(),
+    ])
+
     if (sessionCount === 0) {
       const { sessions, weeks } = generatePlan()
       await db.sessions.bulkAdd(sessions)
@@ -84,6 +84,7 @@ export async function seedDatabaseIfEmpty(): Promise<void> {
         preferredDays: [2, 4, 6, 0], // Tue, Thu, Sat, Sun (JS Date#getDay() convention)
         units: 'km',
         hasRequestedPersistence: false,
+        theme: 'system',
       })
     }
   })

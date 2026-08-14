@@ -6,6 +6,72 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-surface-inset: #f5f5f5;
+  --color-border: #e5e5e5;
+  --color-ink: #171717;
+  --color-ink-muted: #525252;
+  --color-ink-faint: #737373;
+  --color-accent: #065f46;
+  --color-accent-fg: #ffffff;
+  --color-danger: #b91c1c;
+  --color-warning: #92400e;
+  --color-info: #075985;
+  --color-highlight: #6d28d9;
+
+  --chart-grid: #e5e5e5;
+  --chart-axis: #737373;
+  --chart-planned: #a3a3a3;
+  --chart-actual: #065f46;
+  --chart-long-run: #075985;
+  --chart-pace: #92400e;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #e5e5e5;
+  --chart-tooltip-text: #171717;
+}
+
+.dark {
+  --color-bg: #0a0a0a;
+  --color-surface: #171717;
+  --color-surface-inset: #0a0a0a;
+  --color-border: #262626;
+  --color-ink: #f5f5f5;
+  --color-ink-muted: #a3a3a3;
+  --color-ink-faint: #737373;
+  --color-accent: #10b981;
+  --color-accent-fg: #0a0a0a;
+  --color-danger: #f87171;
+  --color-warning: #f59e0b;
+  --color-info: #0ea5e9;
+  --color-highlight: #a78bfa;
+
+  --chart-grid: #262626;
+  --chart-axis: #737373;
+  --chart-planned: #525252;
+  --chart-actual: #10b981;
+  --chart-long-run: #0ea5e9;
+  --chart-pace: #f59e0b;
+  --chart-tooltip-bg: #171717;
+  --chart-tooltip-border: #262626;
+  --chart-tooltip-text: #e5e5e5;
+}
+
+@theme inline {
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-inset: var(--color-surface-inset);
+  --color-border: var(--color-border);
+  --color-ink: var(--color-ink);
+  --color-ink-muted: var(--color-ink-muted);
+  --color-ink-faint: var(--color-ink-faint);
+  --color-accent: var(--color-accent);
+  --color-accent-fg: var(--color-accent-fg);
+  --color-danger: var(--color-danger);
+  --color-warning: var(--color-warning);
+  --color-info: var(--color-info);
+  --color-highlight: var(--color-highlight);
 }
 
 html,
@@ -17,4 +83,13 @@ body,
 body {
   margin: 0;
   overscroll-behavior-y: none;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
