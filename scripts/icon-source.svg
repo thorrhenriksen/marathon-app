@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0a0a0a"/>
+  <g fill="none" stroke="#f97316" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <!-- head -->
+    <circle cx="318" cy="108" r="30" fill="#f97316" stroke="none"/>
+    <!-- torso to back leg -->
+    <path d="M292 150 L246 232 L170 268"/>
+    <!-- back leg lower -->
+    <path d="M170 268 L150 350"/>
+    <!-- torso to front leg (planted) -->
+    <path d="M246 232 L296 300 L286 404"/>
+    <!-- back arm -->
+    <path d="M292 150 L344 196 L392 176"/>
+    <!-- front arm -->
+    <path d="M292 150 L232 176 L206 132"/>
+  </g>
+</svg>
