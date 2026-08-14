@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { Session, Run, Goal, TimeOff, Settings, WeekMeta } from '../types'
+import type { Session, Run, Goal, TimeOff, Settings, WeekMeta, TimeOffAdjustment } from '../types'
 
 export class MarathonDB extends Dexie {
   sessions!: Table<Session, string>
@@ -8,6 +8,7 @@ export class MarathonDB extends Dexie {
   timeOff!: Table<TimeOff, string>
   settings!: Table<Settings, string>
   weeks!: Table<WeekMeta, number>
+  timeOffAdjustments!: Table<TimeOffAdjustment, string>
 
   constructor() {
     super('marathon-training-db')
@@ -18,6 +19,9 @@ export class MarathonDB extends Dexie {
       timeOff: 'id, startDate, endDate',
       settings: 'id',
       weeks: 'week',
+    })
+    this.version(2).stores({
+      timeOffAdjustments: 'id, timeOffId, *affectedWeeks, undone',
     })
   }
 }

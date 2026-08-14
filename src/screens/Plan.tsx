@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { addDays, formatDisplayDate, todayISO } from '../lib/dates'
-import type { Session, SessionType, WeekMeta } from '../types'
+import { findTimeOffForDate, getWeekAdjustments } from '../lib/timeOffDisplay'
+import type { Session, SessionType, WeekMeta, TimeOff } from '../types'
+import AdjustmentSummaryModal from '../components/AdjustmentSummaryModal'
 
 const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   easy: 'Easy',
@@ -22,8 +24,14 @@ const DOT_COLORS: Record<Session['status'], string> = {
   handled: 'bg-info',
 }
 
-function weekBadges(week: WeekMeta): { label: string; className: string }[] {
-  const badges: { label: string; className: string }[] = []
+interface WeekBadge {
+  label: string
+  className: string
+  tappable?: boolean
+}
+
+function weekBadges(week: WeekMeta, isAdjusted: boolean): WeekBadge[] {
+  const badges: WeekBadge[] = []
   if (week.isRaceWeek) {
     badges.push({ label: 'Race day', className: 'bg-accent text-accent-fg' })
   }
@@ -38,6 +46,9 @@ function weekBadges(week: WeekMeta): { label: string; className: string }[] {
   }
   if (week.isHolidayMaintenance) {
     badges.push({ label: 'Holiday maintenance', className: 'bg-surface-inset text-ink-muted' })
+  }
+  if (isAdjusted) {
+    badges.push({ label: 'Adjusted', className: 'bg-info/20 text-info', tappable: true })
   }
   return badges
 }
@@ -56,14 +67,26 @@ interface WeekCardProps {
   sessions: Session[]
   isCurrent: boolean
   isExpanded: boolean
+  isAdjusted: boolean
+  timeOffEntries: TimeOff[]
   onToggle: () => void
+  onTapAdjusted: () => void
 }
 
-function WeekCard({ week, sessions, isCurrent, isExpanded, onToggle }: WeekCardProps) {
+function WeekCard({
+  week,
+  sessions,
+  isCurrent,
+  isExpanded,
+  isAdjusted,
+  timeOffEntries,
+  onToggle,
+  onTapAdjusted,
+}: WeekCardProps) {
   const weekEnd = addDays(week.startDate, 6)
   const completedCount = sessions.filter((s) => s.status === 'completed').length
   const trackedCount = sessions.filter((s) => s.type !== 'rest').length
-  const badges = weekBadges(week)
+  const badges = weekBadges(week, isAdjusted)
 
   return (
     <div className={`rounded-2xl border p-4 ${weekCardStyle(week, isCurrent)}`}>
@@ -91,11 +114,24 @@ function WeekCard({ week, sessions, isCurrent, isExpanded, onToggle }: WeekCardP
 
       {badges.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {badges.map((b) => (
-            <span key={b.label} className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${b.className}`}>
-              {b.label}
-            </span>
-          ))}
+          {badges.map((b) =>
+            b.tappable ? (
+              <button
+                key={b.label}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onTapAdjusted()
+                }}
+                className={`rounded-full px-2 py-0.5 text-[10px] font-medium underline ${b.className}`}
+              >
+                {b.label}
+              </button>
+            ) : (
+              <span key={b.label} className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${b.className}`}>
+                {b.label}
+              </span>
+            ),
+          )}
         </div>
       )}
 
@@ -104,21 +140,27 @@ function WeekCard({ week, sessions, isCurrent, isExpanded, onToggle }: WeekCardP
           {sessions
             .slice()
             .sort((a, b) => (a.date < b.date ? -1 : 1))
-            .map((session) => (
-              <div key={session.id} className="flex items-center gap-3">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${DOT_COLORS[session.status]}`} />
-                <span className="w-9 shrink-0 text-[11px] uppercase text-ink-faint">
-                  {formatDisplayDate(session.date).slice(0, 3)}
-                </span>
-                <span className="w-14 shrink-0 text-xs font-medium text-ink-muted">
-                  {SESSION_TYPE_LABELS[session.type]}
-                </span>
-                <span className="flex-1 truncate text-xs text-ink-muted">{session.description}</span>
-                {session.type !== 'rest' && (
-                  <span className="shrink-0 text-xs text-ink-faint">{session.plannedDistanceKm} km</span>
-                )}
-              </div>
-            ))}
+            .map((session) => {
+              const onTimeOff = !!findTimeOffForDate(session.date, timeOffEntries)
+              return (
+                <div
+                  key={session.id}
+                  className={`flex items-center gap-3 rounded-lg ${onTimeOff ? 'bg-warning/10 px-2 py-1' : ''}`}
+                >
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${DOT_COLORS[session.status]}`} />
+                  <span className="w-9 shrink-0 text-[11px] uppercase text-ink-faint">
+                    {formatDisplayDate(session.date).slice(0, 3)}
+                  </span>
+                  <span className="w-14 shrink-0 text-xs font-medium text-ink-muted">
+                    {SESSION_TYPE_LABELS[session.type]}
+                  </span>
+                  <span className="flex-1 truncate text-xs text-ink-muted">{session.description}</span>
+                  {session.type !== 'rest' && (
+                    <span className="shrink-0 text-xs text-ink-faint">{session.plannedDistanceKm} km</span>
+                  )}
+                </div>
+              )
+            })}
         </div>
       )}
     </div>
@@ -130,6 +172,21 @@ export default function Plan() {
 
   const weeks = useLiveQuery(() => db.weeks.orderBy('week').toArray(), [])
   const sessions = useLiveQuery(() => db.sessions.toArray(), [])
+  const timeOffEntries = useLiveQuery(() => db.timeOff.toArray(), [])
+  const adjustments = useLiveQuery(
+    () => db.timeOffAdjustments.filter((a) => !a.undone).toArray(),
+    [],
+  )
+
+  const [selectedTimeOff, setSelectedTimeOff] = useState<TimeOff | null>(null)
+
+  function handleTapAdjusted(week: number) {
+    const weekAdjustments = getWeekAdjustments(week, adjustments ?? [])
+    const firstAdjustment = weekAdjustments[0]
+    if (!firstAdjustment) return
+    const timeOff = (timeOffEntries ?? []).find((t) => t.id === firstAdjustment.timeOffId)
+    if (timeOff) setSelectedTimeOff(timeOff)
+  }
 
   const currentWeekNumber = useMemo(() => {
     if (!weeks) return null
@@ -208,12 +265,23 @@ export default function Plan() {
                 sessions={sessionsByWeek.get(week.week) ?? []}
                 isCurrent={week.week === currentWeekNumber}
                 isExpanded={expandedWeeks.has(week.week)}
+                isAdjusted={getWeekAdjustments(week.week, adjustments ?? []).length > 0}
+                timeOffEntries={timeOffEntries ?? []}
                 onToggle={() => toggleWeek(week.week)}
+                onTapAdjusted={() => handleTapAdjusted(week.week)}
               />
             ))}
           </div>
         </section>
       ))}
+
+      {selectedTimeOff && (
+        <AdjustmentSummaryModal
+          timeOff={selectedTimeOff}
+          onClose={() => setSelectedTimeOff(null)}
+          onRemoved={() => setSelectedTimeOff(null)}
+        />
+      )}
     </div>
   )
 }

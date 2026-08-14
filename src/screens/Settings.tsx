@@ -10,9 +10,11 @@ import {
   parseDurationToSeconds,
 } from '../lib/paceZones'
 import { computeAdjustment, type AdjustmentPreview } from '../lib/adjustmentEngine'
+import { applyTimeOff } from '../db/timeOffAdjustments'
 import { resetToOriginalPlan } from '../db/seed'
-import type { Session, TimeOff, TimeOffLabel } from '../types'
+import type { TimeOff, TimeOffLabel } from '../types'
 import Modal from '../components/Modal'
+import AdjustmentSummaryModal from '../components/AdjustmentSummaryModal'
 import { useTheme } from '../context/ThemeContext'
 
 const DAY_OPTIONS: { value: number; label: string }[] = [
@@ -29,12 +31,6 @@ const TIME_OFF_LABELS: Record<TimeOffLabel, string> = {
   holiday: 'Holiday',
   illness: 'Illness',
   other: 'Other',
-}
-
-interface UndoSnapshot {
-  timeOffId: string
-  previousSessions: Session[]
-  insertedSessionIds: string[]
 }
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -160,7 +156,7 @@ function TimeOffSection() {
 
   const [pendingTimeOff, setPendingTimeOff] = useState<TimeOff | null>(null)
   const [preview, setPreview] = useState<AdjustmentPreview | null>(null)
-  const [undoSnapshot, setUndoSnapshot] = useState<UndoSnapshot | null>(null)
+  const [selectedTimeOff, setSelectedTimeOff] = useState<TimeOff | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   function handlePreview() {
@@ -188,21 +184,8 @@ function TimeOffSection() {
       preview.updatedSessions.some((u) => u.id === s.id),
     )
 
-    await db.transaction('rw', db.sessions, db.timeOff, async () => {
-      if (preview.updatedSessions.length > 0) {
-        await db.sessions.bulkPut(preview.updatedSessions)
-      }
-      if (preview.insertedSessions.length > 0) {
-        await db.sessions.bulkAdd(preview.insertedSessions)
-      }
-      await db.timeOff.add(pendingTimeOff)
-    })
+    await applyTimeOff(pendingTimeOff, preview, previousSessions)
 
-    setUndoSnapshot({
-      timeOffId: pendingTimeOff.id,
-      previousSessions,
-      insertedSessionIds: preview.insertedSessions.map((s) => s.id),
-    })
     setPreview(null)
     setPendingTimeOff(null)
     setNote('')
@@ -213,43 +196,21 @@ function TimeOffSection() {
     setPendingTimeOff(null)
   }
 
-  async function handleUndo() {
-    if (!undoSnapshot) return
-    await db.transaction('rw', db.sessions, db.timeOff, async () => {
-      if (undoSnapshot.previousSessions.length > 0) {
-        await db.sessions.bulkPut(undoSnapshot.previousSessions)
-      }
-      if (undoSnapshot.insertedSessionIds.length > 0) {
-        await db.sessions.bulkDelete(undoSnapshot.insertedSessionIds)
-      }
-      await db.timeOff.delete(undoSnapshot.timeOffId)
-    })
-    setUndoSnapshot(null)
-  }
-
   return (
     <SectionCard title="Time off">
-      {undoSnapshot && (
-        <div className="mb-3 flex items-center justify-between rounded-xl border border-info/40 bg-info/10 px-3 py-2 text-xs text-info">
-          <span>Time off adjustment applied.</span>
-          <button onClick={handleUndo} className="font-semibold underline">
-            Undo
-          </button>
-        </div>
-      )}
-
       {timeOffEntries && timeOffEntries.length > 0 && (
         <div className="mb-4 flex flex-col gap-2">
           {timeOffEntries.map((entry) => (
-            <div
+            <button
               key={entry.id}
-              className="flex items-center justify-between rounded-xl border border-border bg-surface-inset px-3 py-2 text-xs"
+              onClick={() => setSelectedTimeOff(entry)}
+              className="flex items-center justify-between rounded-xl border border-border bg-surface-inset px-3 py-2 text-left text-xs"
             >
               <span className="text-ink-muted">
                 {formatDisplayDate(entry.startDate)} – {formatDisplayDate(entry.endDate)}
               </span>
               <span className="text-ink-faint">{TIME_OFF_LABELS[entry.label]}</span>
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -332,6 +293,14 @@ function TimeOffSection() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {selectedTimeOff && (
+        <AdjustmentSummaryModal
+          timeOff={selectedTimeOff}
+          onClose={() => setSelectedTimeOff(null)}
+          onRemoved={() => setSelectedTimeOff(null)}
+        />
       )}
     </SectionCard>
   )

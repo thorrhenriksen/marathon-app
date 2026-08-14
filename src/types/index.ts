@@ -90,6 +90,19 @@ export interface WeekMeta {
   isTaper: boolean
 }
 
+export interface TimeOffAdjustment {
+  id: string
+  timeOffId: string
+  createdAt: string
+  summary: string[]
+  affectedWeeks: number[]
+  previousSessions: Session[]
+  insertedSessionIds: string[]
+  returnWeekNumber?: number
+  reEntryTemplateWeek?: number
+  undone: boolean
+}
+
 export interface PaceZones {
   marathonPaceSecPerKm: number
   easyPaceMinSecPerKm: number

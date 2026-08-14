@@ -11,9 +11,11 @@ import {
   todayISO,
 } from '../lib/dates'
 import { computePaceZones, DEFAULT_GOAL_SECONDS, formatPace, formatPaceRange } from '../lib/paceZones'
-import type { Session, SessionType } from '../types'
+import { findTimeOffForDate, getWeekAdjustments } from '../lib/timeOffDisplay'
+import type { Session, SessionType, TimeOff } from '../types'
 import Modal from '../components/Modal'
 import LogRunForm from '../components/LogRunForm'
+import AdjustmentSummaryModal from '../components/AdjustmentSummaryModal'
 
 const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   easy: 'Easy run',
@@ -71,8 +73,27 @@ export default function Today() {
       .filter((w) => w.startDate <= today)
       .sort((a, b) => (a.startDate < b.startDate ? 1 : -1))[0]
   }, [today])
+  const timeOffEntries = useLiveQuery(() => db.timeOff.toArray(), [])
+  const adjustments = useLiveQuery(
+    () => db.timeOffAdjustments.filter((a) => !a.undone).toArray(),
+    [],
+  )
 
   const [loggingSession, setLoggingSession] = useState<Session | null>(null)
+  const [selectedTimeOff, setSelectedTimeOff] = useState<TimeOff | null>(null)
+
+  const weekIsAdjusted = currentWeekMeta
+    ? getWeekAdjustments(currentWeekMeta.week, adjustments ?? []).length > 0
+    : false
+
+  function handleTapAdjusted() {
+    if (!currentWeekMeta) return
+    const weekAdjustments = getWeekAdjustments(currentWeekMeta.week, adjustments ?? [])
+    const firstAdjustment = weekAdjustments[0]
+    if (!firstAdjustment) return
+    const timeOff = (timeOffEntries ?? []).find((t) => t.id === firstAdjustment.timeOffId)
+    if (timeOff) setSelectedTimeOff(timeOff)
+  }
 
   const zones = computePaceZones(goal?.targetTimeSeconds ?? DEFAULT_GOAL_SECONDS)
   const daysToRace = daysBetween(today, RACE_DATE)
@@ -175,7 +196,14 @@ export default function Today() {
 
       {/* This week at a glance */}
       <section>
-        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">This week</h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">This week</h2>
+          {weekIsAdjusted && (
+            <button onClick={handleTapAdjusted} className="text-[11px] font-medium text-info underline">
+              Adjusted
+            </button>
+          )}
+        </div>
         {currentWeekMeta && (
           <p className="mb-2 text-xs text-ink-faint">
             Week {currentWeekMeta.week} · {currentWeekMeta.phaseLabel} · target {currentWeekMeta.targetVolumeKm} km
@@ -185,11 +213,16 @@ export default function Today() {
           {Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)).map((date) => {
             const session = weekSessions?.find((s) => s.date === date)
             const isToday = date === today
+            const onTimeOff = !!findTimeOffForDate(date, timeOffEntries ?? [])
             return (
               <div
                 key={date}
                 className={`flex flex-col items-center rounded-xl border p-2 text-center ${
-                  isToday ? 'border-accent bg-accent/10' : 'border-border bg-surface'
+                  isToday
+                    ? 'border-accent bg-accent/10'
+                    : onTimeOff
+                      ? 'border-warning/40 bg-warning/10'
+                      : 'border-border bg-surface'
                 }`}
               >
                 <span className="text-[10px] uppercase text-ink-faint">
@@ -215,6 +248,14 @@ export default function Today() {
             onCancel={() => setLoggingSession(null)}
           />
         </Modal>
+      )}
+
+      {selectedTimeOff && (
+        <AdjustmentSummaryModal
+          timeOff={selectedTimeOff}
+          onClose={() => setSelectedTimeOff(null)}
+          onRemoved={() => setSelectedTimeOff(null)}
+        />
       )}
     </div>
   )
