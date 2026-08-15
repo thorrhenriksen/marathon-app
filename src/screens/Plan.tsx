@@ -15,6 +15,7 @@ const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   strides: 'Strides',
   race: 'Race',
   rest: 'Rest',
+  strength: 'Strength',
 }
 
 const DOT_COLORS: Record<Session['status'], string> = {
@@ -23,6 +24,7 @@ const DOT_COLORS: Record<Session['status'], string> = {
   skipped: 'bg-danger',
   moved: 'bg-warning',
   handled: 'bg-info',
+  'downgraded-to-mobility': 'bg-strength',
 }
 
 interface WeekBadge {
@@ -159,8 +161,12 @@ function WeekCard({
                     {SESSION_TYPE_LABELS[session.type]}
                   </span>
                   <span className="flex-1 truncate text-xs text-ink-muted">{session.description}</span>
-                  {session.type !== 'rest' && (
-                    <span className="shrink-0 text-xs text-ink-faint">{session.plannedDistanceKm} km</span>
+                  {session.type === 'strength' ? (
+                    <span className="shrink-0 text-xs text-ink-faint">Session {session.variant}</span>
+                  ) : (
+                    session.type !== 'rest' && (
+                      <span className="shrink-0 text-xs text-ink-faint">{session.plannedDistanceKm} km</span>
+                    )
                   )}
                 </button>
               )

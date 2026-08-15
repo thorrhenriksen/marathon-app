@@ -20,6 +20,7 @@
   --color-warning: #92400e;
   --color-info: #075985;
   --color-highlight: #6d28d9;
+  --color-strength: #0f766e;
 
   --chart-grid: #e5e5e5;
   --chart-axis: #737373;
@@ -46,6 +47,7 @@
   --color-warning: #f59e0b;
   --color-info: #0ea5e9;
   --color-highlight: #a78bfa;
+  --color-strength: #2dd4bf;
 
   --chart-grid: #262626;
   --chart-axis: #737373;
@@ -72,6 +74,7 @@
   --color-warning: var(--color-warning);
   --color-info: var(--color-info);
   --color-highlight: var(--color-highlight);
+  --color-strength: var(--color-strength);
 }
 
 html,

@@ -15,6 +15,7 @@ const TYPE_LABELS: Record<SessionType | 'other', string> = {
   strides: 'Strides',
   race: 'Race',
   rest: 'Rest',
+  strength: 'Strength',
   other: 'Other',
 }
 

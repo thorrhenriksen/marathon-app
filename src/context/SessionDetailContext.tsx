@@ -14,7 +14,9 @@ export function SessionDetailProvider({ children }: { children: ReactNode }) {
   return (
     <SessionDetailContext.Provider value={{ openSessionDetail: setOpenSession }}>
       {children}
-      {openSession && <SessionDetailSheet session={openSession} onClose={() => setOpenSession(null)} />}
+      {openSession && (
+        <SessionDetailSheet key={openSession.id} session={openSession} onClose={() => setOpenSession(null)} />
+      )}
     </SessionDetailContext.Provider>
   )
 }

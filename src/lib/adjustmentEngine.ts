@@ -1,5 +1,6 @@
 import type { Session, SessionType, Settings, TimeOff, WeekMeta } from '../types'
 import { addDays, daysBetween, getWeekdayIndex, startOfWeek } from './dates'
+import { buildMobilityOnlyExercises } from './strengthCatalog'
 
 export interface AdjustmentPreview {
   timeOffId: string
@@ -25,6 +26,7 @@ const SESSION_PRIORITY: Record<SessionType, number> = {
   strides: 2,
   easy: 1,
   rest: 0,
+  strength: -1,
 }
 
 function rangeLengthDays(timeOff: TimeOff): number {
@@ -146,6 +148,12 @@ function applyShortGapRedistribution(
     )
 
     for (const session of sortedToReschedule) {
+      if (session.type === 'strength') {
+        updatedSessions.push({ ...session, status: 'skipped' })
+        summary.push(`Skipped "${session.description}" (${session.date}) — strength sessions aren't rescheduled.`)
+        continue
+      }
+
       const slotIndex = availableOffsets.findIndex(
         (offset) => longestConsecutiveRun([...placedOffsets, offset]) <= 2,
       )
@@ -215,6 +223,23 @@ function applyReEntryWeek(
   for (const templateSession of templateSessions) {
     const offset = daysBetween(templateWeekMeta.startDate, templateSession.date)
     const newDate = addDays(returnWeekMeta.startDate, offset)
+
+    if (templateSession.type === 'strength') {
+      insertedSessions.push({
+        id: crypto.randomUUID(),
+        week: returnWeekNumber,
+        date: newDate,
+        type: 'strength',
+        plannedDistanceKm: 0,
+        description: `${templateSession.description} (re-entry week)`,
+        status: 'planned',
+        variant: templateSession.variant,
+        exercises: templateSession.exercises?.map((e) => ({ ...e, completed: false })),
+        estimatedMinutes: templateSession.estimatedMinutes,
+      })
+      continue
+    }
+
     insertedSessions.push({
       id: crypto.randomUUID(),
       week: returnWeekNumber,
@@ -252,5 +277,15 @@ export function applyNotFeeling100(session: Session): Session {
     plannedDistanceKm: shortEasyKm,
     description: 'Short easy run (adjusted — not feeling 100%)',
     status: 'handled',
+  }
+}
+
+/** "Swap to mobility only" quick-adjust for strength sessions: reduces the
+ *  session to just its 5-min mobility block. */
+export function applySwapToMobilityOnly(session: Session): Session {
+  return {
+    ...session,
+    exercises: buildMobilityOnlyExercises(session.variant ?? 'A'),
+    status: 'downgraded-to-mobility',
   }
 }

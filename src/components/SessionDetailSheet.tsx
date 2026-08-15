@@ -11,9 +11,10 @@ import {
   formatPaceDelta,
 } from '../lib/paceZones'
 import { findLastComparableRun } from '../lib/comparableRun'
+import { findLastComparableStrengthSession } from '../lib/comparableStrength'
 import { isNearLongestLongRun, pickTips } from '../lib/sessionTips'
-import { moveSessionToDate, applyNotFeeling100 } from '../lib/adjustmentEngine'
-import type { Session } from '../types'
+import { moveSessionToDate, applyNotFeeling100, applySwapToMobilityOnly } from '../lib/adjustmentEngine'
+import type { Session, SessionExercise } from '../types'
 import BottomSheet from './BottomSheet'
 import Modal from './Modal'
 import LogRunForm from './LogRunForm'
@@ -39,6 +40,10 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
   const [moveDate, setMoveDate] = useState(session.date)
   const [moveError, setMoveError] = useState<string | null>(null)
   const [confirmingNotFeeling100, setConfirmingNotFeeling100] = useState(false)
+  const [exercises, setExercises] = useState<SessionExercise[]>(session.exercises ?? [])
+  const [confirmingComplete, setConfirmingComplete] = useState(false)
+  const [completionNote, setCompletionNote] = useState('')
+  const [confirmingSwapToMobility, setConfirmingSwapToMobility] = useState(false)
 
   const zones = computePaceZones(goal?.targetTimeSeconds ?? DEFAULT_GOAL_SECONDS)
   const estimatedMinutes = estimateSessionDurationMinutes(session.plannedDistanceKm, zones)
@@ -63,15 +68,21 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
       case 'strides':
         return (zones.easyPaceMinSecPerKm + zones.easyPaceMaxSecPerKm) / 2
       case 'rest':
+      case 'strength':
         return 0
     }
   })()
 
   const lastComparableRun =
-    session.type !== 'rest' ? findLastComparableRun(session, runs ?? []) : undefined
+    session.type !== 'rest' && session.type !== 'strength'
+      ? findLastComparableRun(session, runs ?? [])
+      : undefined
+
+  const lastComparableStrengthSession =
+    session.type === 'strength' ? findLastComparableStrengthSession(session, allSessions ?? []) : undefined
 
   const canAct = session.status !== 'completed'
-  const canLog = session.type !== 'rest' && session.status !== 'skipped'
+  const canLog = session.type !== 'rest' && session.type !== 'strength' && session.status !== 'skipped'
 
   async function handleMove() {
     if (!weekMeta) return
@@ -86,6 +97,29 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
 
   async function handleNotFeeling100() {
     const updated = applyNotFeeling100(session)
+    await db.sessions.put(updated)
+    onClose()
+  }
+
+  function handleToggleExercise(exerciseId: string) {
+    const updated = exercises.map((e) => (e.exerciseId === exerciseId ? { ...e, completed: !e.completed } : e))
+    setExercises(updated)
+    db.sessions.update(session.id, { exercises: updated })
+  }
+
+  async function handleCompleteSession() {
+    const completedExercises = exercises.map((e) => ({ ...e, completed: true }))
+    await db.sessions.put({
+      ...session,
+      exercises: completedExercises,
+      status: 'completed',
+      completionNote: completionNote.trim() || undefined,
+    })
+    onClose()
+  }
+
+  async function handleSwapToMobilityOnly() {
+    const updated = applySwapToMobilityOnly(session)
     await db.sessions.put(updated)
     onClose()
   }
@@ -107,7 +141,7 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
             )}
           </div>
 
-          {session.type !== 'rest' && (
+          {session.type !== 'rest' && session.type !== 'strength' && (
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-border bg-surface-inset p-3">
                 <p className="text-xs text-ink-faint">Distance</p>
@@ -120,7 +154,45 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
             </div>
           )}
 
+          {session.type === 'strength' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-border bg-surface-inset p-3">
+                <p className="text-xs text-ink-faint">Session</p>
+                <p className="mt-1 text-lg font-semibold text-ink">Session {session.variant}</p>
+              </div>
+              <div className="rounded-xl border border-border bg-surface-inset p-3">
+                <p className="text-xs text-ink-faint">Duration</p>
+                <p className="mt-1 text-lg font-semibold text-ink">{session.estimatedMinutes ?? 25} min</p>
+              </div>
+            </div>
+          )}
+
           <p className="text-sm text-ink-muted">{session.description}</p>
+
+          {session.type === 'strength' && session.status !== 'completed' && (
+            <div>
+              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-faint">Exercises</h3>
+              <ul className="flex flex-col gap-2">
+                {exercises.map((exercise) => (
+                  <li key={exercise.exerciseId} className="flex items-start gap-3 rounded-xl border border-border bg-surface-inset p-3">
+                    <input
+                      type="checkbox"
+                      checked={exercise.completed}
+                      onChange={() => handleToggleExercise(exercise.exerciseId)}
+                      className="mt-1 h-4 w-4 accent-strength"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-ink">{exercise.name}</p>
+                      <p className="text-xs text-ink-faint">
+                        {exercise.sets} x {exercise.reps ?? `${exercise.holdSeconds}s`}
+                      </p>
+                      <p className="mt-1 text-xs text-ink-muted">{exercise.formCue}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {tips.length > 0 && (
             <div>
@@ -152,25 +224,59 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
             </div>
           )}
 
-          {session.status === 'completed' ? (
+          {lastComparableStrengthSession && (
             <div>
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-faint">Planned vs actual</h3>
-              {linkedRun ? (
-                <div className="rounded-xl border border-accent/40 bg-accent/10 p-3 text-sm">
-                  <p className="text-ink">
-                    Ran {linkedRun.distanceKm} km in {formatDuration(linkedRun.durationSeconds)} (
-                    {formatPace(linkedRun.paceSecPerKm)})
-                  </p>
-                  {referencePaceSecPerKm > 0 && (
-                    <p className="mt-1 text-ink-muted">
-                      {formatPaceDelta(linkedRun.paceSecPerKm, referencePaceSecPerKm)}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-ink-faint">No run details recorded.</p>
-              )}
+              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-faint">Last comparable session</h3>
+              <div className="rounded-xl border border-border bg-surface-inset p-3 text-sm text-ink-muted">
+                <p>
+                  Session {lastComparableStrengthSession.variant} on{' '}
+                  {formatDisplayDateLong(lastComparableStrengthSession.date)}
+                </p>
+                {lastComparableStrengthSession.completionNote && (
+                  <p className="mt-1 text-ink-faint">{lastComparableStrengthSession.completionNote}</p>
+                )}
+              </div>
             </div>
+          )}
+
+          {session.status === 'completed' ? (
+            session.type === 'strength' ? (
+              <div>
+                <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-faint">Exercises completed</h3>
+                <ul className="flex flex-col gap-2">
+                  {(session.exercises ?? []).map((exercise) => (
+                    <li
+                      key={exercise.exerciseId}
+                      className="rounded-xl border border-accent/40 bg-accent/10 p-3 text-sm text-ink"
+                    >
+                      ✓ {exercise.name}
+                    </li>
+                  ))}
+                </ul>
+                {session.completionNote && (
+                  <p className="mt-2 text-sm text-ink-muted">{session.completionNote}</p>
+                )}
+              </div>
+            ) : (
+              <div>
+                <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-faint">Planned vs actual</h3>
+                {linkedRun ? (
+                  <div className="rounded-xl border border-accent/40 bg-accent/10 p-3 text-sm">
+                    <p className="text-ink">
+                      Ran {linkedRun.distanceKm} km in {formatDuration(linkedRun.durationSeconds)} (
+                      {formatPace(linkedRun.paceSecPerKm)})
+                    </p>
+                    {referencePaceSecPerKm > 0 && (
+                      <p className="mt-1 text-ink-muted">
+                        {formatPaceDelta(linkedRun.paceSecPerKm, referencePaceSecPerKm)}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-ink-faint">No run details recorded.</p>
+                )}
+              </div>
+            )
           ) : (
             canAct && (
               <div className="flex flex-col gap-2">
@@ -182,6 +288,40 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
                     Log this run
                   </button>
                 )}
+
+                {session.type === 'strength' &&
+                  (!confirmingComplete ? (
+                    <button
+                      onClick={() => setConfirmingComplete(true)}
+                      className="w-full rounded-xl bg-accent py-3 text-base font-semibold text-accent-fg"
+                    >
+                      Complete session
+                    </button>
+                  ) : (
+                    <div className="rounded-xl border border-border p-3">
+                      <label className="text-xs text-ink-faint">Note (optional)</label>
+                      <textarea
+                        value={completionNote}
+                        onChange={(e) => setCompletionNote(e.target.value)}
+                        rows={2}
+                        className="mt-1 w-full rounded-lg border border-border bg-surface-inset px-3 py-2 text-sm text-ink"
+                      />
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={() => setConfirmingComplete(false)}
+                          className="flex-1 rounded-lg border border-border py-2 text-sm text-ink-muted"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleCompleteSession}
+                          className="flex-1 rounded-lg bg-accent py-2 text-sm font-medium text-accent-fg"
+                        >
+                          Confirm
+                        </button>
+                      </div>
+                    </div>
+                  ))}
 
                 {!moving ? (
                   <button
@@ -222,7 +362,36 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
                   </div>
                 )}
 
-                {!confirmingNotFeeling100 ? (
+                {session.type === 'strength' ? (
+                  !confirmingSwapToMobility ? (
+                    <button
+                      onClick={() => setConfirmingSwapToMobility(true)}
+                      className="w-full rounded-xl border border-border py-3 text-sm font-medium text-ink"
+                    >
+                      Swap to mobility only
+                    </button>
+                  ) : (
+                    <div className="rounded-xl border border-strength/40 bg-strength/10 p-3">
+                      <p className="text-sm text-strength">
+                        This will reduce today's session to the 5-min mobility block only. Confirm?
+                      </p>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={() => setConfirmingSwapToMobility(false)}
+                          className="flex-1 rounded-lg border border-border py-2 text-sm text-ink-muted"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSwapToMobilityOnly}
+                          className="flex-1 rounded-lg bg-strength py-2 text-sm font-medium text-accent-fg"
+                        >
+                          Confirm
+                        </button>
+                      </div>
+                    </div>
+                  )
+                ) : !confirmingNotFeeling100 ? (
                   <button
                     onClick={() => setConfirmingNotFeeling100(true)}
                     className="w-full rounded-xl border border-border py-3 text-sm font-medium text-ink"

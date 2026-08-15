@@ -5,12 +5,13 @@ import { db } from './db'
 import { WEEK_PLAN, PHASE_LABELS } from './weekPlan'
 import { addDays } from '../lib/dates'
 import { DEFAULT_GOAL_SECONDS } from '../lib/paceZones'
+import { generateStrengthSessions } from '../lib/strengthSchedule'
 import type { Session, WeekMeta } from '../types'
 
 export const RACE_DATE = '2027-04-25'
 export const PLAN_START_DATE = '2026-08-17'
 
-function weekStartDate(week: number): string {
+export function weekStartDate(week: number): string {
   return addDays(PLAN_START_DATE, (week - 1) * 7)
 }
 
@@ -66,7 +67,7 @@ export async function seedDatabaseIfEmpty(): Promise<void> {
 
     if (sessionCount === 0) {
       const { sessions, weeks } = generatePlan()
-      await db.sessions.bulkAdd(sessions)
+      await db.sessions.bulkAdd([...sessions, ...generateStrengthSessions()])
       await db.weeks.bulkAdd(weeks)
     }
 
@@ -96,7 +97,7 @@ export async function resetToOriginalPlan(): Promise<void> {
     await db.sessions.clear()
     await db.weeks.clear()
     const { sessions, weeks } = generatePlan()
-    await db.sessions.bulkAdd(sessions)
+    await db.sessions.bulkAdd([...sessions, ...generateStrengthSessions()])
     await db.weeks.bulkAdd(weeks)
   })
 }

@@ -10,6 +10,7 @@ export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   strides: 'Strides',
   race: 'Race day',
   rest: 'Rest',
+  strength: 'Strength',
 }
 
 const STATUS_BADGE_STYLES: Record<Session['status'], string> = {
@@ -18,6 +19,7 @@ const STATUS_BADGE_STYLES: Record<Session['status'], string> = {
   skipped: 'bg-danger/20 text-danger',
   moved: 'bg-warning/20 text-warning',
   handled: 'bg-info/20 text-info',
+  'downgraded-to-mobility': 'bg-strength/20 text-strength',
 }
 
 const STATUS_BADGE_LABELS: Record<Session['status'], string> = {
@@ -26,6 +28,7 @@ const STATUS_BADGE_LABELS: Record<Session['status'], string> = {
   skipped: 'Skipped',
   moved: 'Moved',
   handled: 'Adjusted',
+  'downgraded-to-mobility': 'Mobility only',
 }
 
 export function paceGuidanceFor(session: Session, zones: PaceZones): string {
@@ -40,6 +43,7 @@ export function paceGuidanceFor(session: Session, zones: PaceZones): string {
     case 'race':
       return formatPace(zones.marathonPaceSecPerKm)
     case 'rest':
+    case 'strength':
       return '—'
   }
 }
@@ -54,7 +58,11 @@ export default function SessionCard({ session, zones, onLog }: SessionCardProps)
   const { openSessionDetail } = useSessionDetail()
   const estimatedMinutes = estimateSessionDurationMinutes(session.plannedDistanceKm, zones)
   const showFuelingReminder = session.type === 'long' && estimatedMinutes > 90
-  const canLog = session.type !== 'rest' && session.status !== 'completed' && session.status !== 'skipped'
+  const canLog =
+    session.type !== 'rest' &&
+    session.type !== 'strength' &&
+    session.status !== 'completed' &&
+    session.status !== 'skipped'
 
   return (
     <div
@@ -65,7 +73,11 @@ export default function SessionCard({ session, zones, onLog }: SessionCardProps)
         <div>
           <p className="text-xs uppercase tracking-wide text-ink-faint">{SESSION_TYPE_LABELS[session.type]}</p>
           <p className="mt-1 text-2xl font-semibold text-ink">
-            {session.type === 'rest' ? 'Rest day' : `${session.plannedDistanceKm} km`}
+            {session.type === 'rest'
+              ? 'Rest day'
+              : session.type === 'strength'
+                ? `Session ${session.variant}`
+                : `${session.plannedDistanceKm} km`}
           </p>
         </div>
         <span
@@ -77,10 +89,18 @@ export default function SessionCard({ session, zones, onLog }: SessionCardProps)
 
       <p className="mt-2 text-sm text-ink-muted">{session.description}</p>
 
-      {session.type !== 'rest' && (
+      {session.type !== 'rest' && session.type !== 'strength' && (
         <p className="mt-2 text-sm text-ink-muted">
           Target pace: <span className="text-ink">{paceGuidanceFor(session, zones)}</span>
         </p>
+      )}
+
+      {session.type === 'strength' && session.exercises && (
+        <ul className="mt-2 list-disc pl-4 text-sm text-ink-muted">
+          {session.exercises.slice(0, 3).map((exercise) => (
+            <li key={exercise.exerciseId}>{exercise.name}</li>
+          ))}
+        </ul>
       )}
 
       {showFuelingReminder && (

@@ -63,7 +63,13 @@ export default function WeekStrip({ weeks, sessions, timeOffEntries, selectedDat
                     className={`mt-1 h-2 w-2 rounded-full ${session ? sessionDotColor(session.type) : 'bg-surface-inset'}`}
                   />
                   <span className="mt-1 text-[11px] text-ink-muted">
-                    {session && session.type !== 'rest' ? `${session.plannedDistanceKm}k` : ''}
+                    {session
+                      ? session.type === 'strength'
+                        ? session.variant
+                        : session.type !== 'rest'
+                          ? `${session.plannedDistanceKm}k`
+                          : ''
+                      : ''}
                   </span>
                 </button>
               )

@@ -9,6 +9,7 @@ export type SessionType =
   | 'strides'
   | 'race'
   | 'rest'
+  | 'strength'
 
 export type SessionStatus =
   | 'planned'
@@ -16,6 +17,32 @@ export type SessionStatus =
   | 'skipped'
   | 'moved'
   | 'handled' // set by the "Not feeling 100%" quick-adjust action
+  | 'downgraded-to-mobility' // strength session reduced to the 5-min mobility block only
+
+export type StrengthVariant = 'A' | 'B'
+
+export type StrengthEquipment = 'bodyweight' | 'dumbbell' | 'pullup-bar' | 'mat'
+
+export interface StrengthExerciseCatalogEntry {
+  id: string
+  name: string
+  targetArea: string
+  equipment: StrengthEquipment
+  formCue: string
+}
+
+/** Per-session snapshot — denormalized from the catalog so historical
+ *  sessions keep the exact prescription shown even if the catalog changes. */
+export interface SessionExercise {
+  exerciseId: string
+  name: string
+  sets: number
+  /** Exactly one of reps / holdSeconds is set. */
+  reps?: number
+  holdSeconds?: number
+  formCue: string
+  completed: boolean
+}
 
 export interface Session {
   id: string
@@ -30,6 +57,11 @@ export interface Session {
   originalDate?: string
   /** Set once a Run has been logged against this session. */
   linkedRunId?: string
+  /** Strength sessions only, below. */
+  variant?: StrengthVariant
+  exercises?: SessionExercise[]
+  estimatedMinutes?: number
+  completionNote?: string
 }
 
 export type TimeOffLabel = 'holiday' | 'illness' | 'other'

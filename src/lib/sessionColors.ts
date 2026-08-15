@@ -12,6 +12,7 @@ const SESSION_TYPE_DOT_COLORS: Record<SessionType, string> = {
   strides: 'bg-accent',
   race: 'bg-danger',
   rest: 'bg-ink-faint',
+  strength: 'bg-strength',
 }
 
 export function sessionDotColor(type: SessionType): string {

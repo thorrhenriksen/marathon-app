@@ -49,6 +49,12 @@ export const SESSION_TIPS: Record<SessionType, string[]> = {
     'Light stretching, sleep, and nutrition all support tomorrow\'s session.',
     'It is normal to feel a little restless on rest days — trust the plan.',
   ],
+  strength: [
+    'Control the speed on the way down, not just on the way up — that\'s where the strength is built.',
+    'Full range of motion beats a heavier load or more reps every time.',
+    'Single-leg work is your injury insurance — don\'t rush it just because it feels less taxing.',
+    'Stop the set as soon as your form breaks down, even if you have reps left.',
+  ],
 }
 
 /** Deterministic hash of a string into a non-negative 32-bit integer. */

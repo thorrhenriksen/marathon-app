@@ -141,6 +141,26 @@ function computeAdherence(sessions: Session[], today: string): number {
   return Math.round((completed / elapsed.length) * 100)
 }
 
+function computeStrengthAdherence(
+  sessions: Session[],
+  today: string,
+): { completed: number; planned: number; streak: number } {
+  const elapsed = sessions
+    .filter((s) => s.type === 'strength' && s.date <= today)
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+
+  const planned = elapsed.length
+  const completed = elapsed.filter((s) => s.status === 'completed').length
+
+  let streak = 0
+  for (let i = elapsed.length - 1; i >= 0; i--) {
+    if (elapsed[i].status === 'completed') streak++
+    else break
+  }
+
+  return { completed, planned, streak }
+}
+
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-border bg-surface p-4">
@@ -186,6 +206,10 @@ export default function Progress() {
     () => (sessions ? computeAdherence(sessions, today) : 0),
     [sessions, today],
   )
+  const strengthAdherence = useMemo(
+    () => (sessions ? computeStrengthAdherence(sessions, today) : { completed: 0, planned: 0, streak: 0 }),
+    [sessions, today],
+  )
   const totalKm = useMemo(
     () => (runs ? runs.reduce((sum, r) => sum + r.distanceKm, 0) : 0),
     [runs],
@@ -216,7 +240,13 @@ export default function Progress() {
         <StatCard label="Current streak" value={`${streaks.current} ${streaks.current === 1 ? 'week' : 'weeks'}`} />
       </div>
 
-      <StatCard label="Best streak" value={`${streaks.best} ${streaks.best === 1 ? 'week' : 'weeks'}`} />
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard label="Best streak" value={`${streaks.best} ${streaks.best === 1 ? 'week' : 'weeks'}`} />
+        <StatCard
+          label="Strength adherence"
+          value={`${strengthAdherence.completed}/${strengthAdherence.planned} · ${strengthAdherence.streak} streak`}
+        />
+      </div>
 
       {!hasRuns ? (
         <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-ink-faint">
