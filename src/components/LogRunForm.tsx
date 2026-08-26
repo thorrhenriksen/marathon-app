@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { db } from '../db/db'
+import DurationInput from './DurationInput'
 import { todayISO } from '../lib/dates'
-import { computePaceSecPerKm, formatPace, parseDurationToSeconds } from '../lib/paceZones'
+import { computePaceSecPerKm, formatPace } from '../lib/paceZones'
 import type { Session, SessionType } from '../types'
 
 interface LogRunFormProps {
@@ -24,7 +25,7 @@ const TYPE_OPTIONS: (SessionType | 'other')[] = [
 export default function LogRunForm({ session, onSaved, onCancel }: LogRunFormProps) {
   const [date, setDate] = useState(session?.date ?? todayISO())
   const [distanceKm, setDistanceKm] = useState(session ? String(session.plannedDistanceKm) : '')
-  const [durationInput, setDurationInput] = useState('')
+  const [durationSeconds, setDurationSeconds] = useState(0)
   const [effort, setEffort] = useState(5)
   const [note, setNote] = useState('')
   const [type, setType] = useState<SessionType | 'other'>(
@@ -32,7 +33,6 @@ export default function LogRunForm({ session, onSaved, onCancel }: LogRunFormPro
   )
   const [saving, setSaving] = useState(false)
 
-  const durationSeconds = parseDurationToSeconds(durationInput)
   const distance = Number(distanceKm)
   const pace = distance > 0 && durationSeconds > 0 ? computePaceSecPerKm(distance, durationSeconds) : 0
   const canSave = distance > 0 && durationSeconds > 0 && date.length === 10
@@ -76,35 +76,27 @@ export default function LogRunForm({ session, onSaved, onCancel }: LogRunFormPro
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-faint">
-            Distance (km)
-          </label>
-          <input
-            type="number"
-            inputMode="decimal"
-            step="0.1"
-            min="0"
-            value={distanceKm}
-            onChange={(e) => setDistanceKm(e.target.value)}
-            placeholder="0.0"
-            className="w-full rounded-lg border border-border bg-surface-inset px-3 py-3 text-base text-ink"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-faint">
-            Time (h:mm:ss)
-          </label>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={durationInput}
-            onChange={(e) => setDurationInput(e.target.value)}
-            placeholder="0:45:00"
-            className="w-full rounded-lg border border-border bg-surface-inset px-3 py-3 text-base text-ink"
-          />
-        </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-faint">
+          Distance (km)
+        </label>
+        <input
+          type="number"
+          inputMode="decimal"
+          step="0.1"
+          min="0"
+          value={distanceKm}
+          onChange={(e) => setDistanceKm(e.target.value)}
+          placeholder="0.0"
+          className="w-full rounded-lg border border-border bg-surface-inset px-3 py-3 text-base text-ink"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-faint">
+          Time
+        </label>
+        <DurationInput seconds={durationSeconds} onChange={setDurationSeconds} />
       </div>
 
       {pace > 0 && (

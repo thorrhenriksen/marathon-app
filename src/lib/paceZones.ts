@@ -44,17 +44,6 @@ export function formatDuration(totalSeconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-/** Parses "H:MM:SS", "MM:SS", or a bare minute count into total seconds. */
-export function parseDurationToSeconds(input: string): number {
-  const trimmed = input.trim()
-  if (!trimmed) return 0
-  const parts = trimmed.split(':').map((p) => Number(p))
-  if (parts.some((p) => Number.isNaN(p))) return 0
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
-  if (parts.length === 2) return parts[0] * 60 + parts[1]
-  return parts[0] * 60
-}
-
 export function computePaceSecPerKm(distanceKm: number, durationSeconds: number): number {
   if (distanceKm <= 0) return 0
   return durationSeconds / distanceKm

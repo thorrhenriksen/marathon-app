@@ -2,19 +2,14 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { formatDisplayDate, todayISO } from '../lib/dates'
-import {
-  computePaceZones,
-  formatDuration,
-  formatPace,
-  formatPaceRange,
-  parseDurationToSeconds,
-} from '../lib/paceZones'
+import { computePaceZones, formatPace, formatPaceRange } from '../lib/paceZones'
 import { computeAdjustment, type AdjustmentPreview } from '../lib/adjustmentEngine'
 import { applyTimeOff } from '../db/timeOffAdjustments'
 import { resetToOriginalPlan } from '../db/seed'
 import type { TimeOff, TimeOffLabel } from '../types'
 import Modal from '../components/Modal'
 import AdjustmentSummaryModal from '../components/AdjustmentSummaryModal'
+import DurationInput from '../components/DurationInput'
 import { useTheme } from '../context/ThemeContext'
 
 const DAY_OPTIONS: { value: number; label: string }[] = [
@@ -83,16 +78,9 @@ function ThemeSection() {
 
 function GoalSection() {
   const goal = useLiveQuery(() => db.goals.get('goal'), [])
-  const [draft, setDraft] = useState('')
-  const [initialized, setInitialized] = useState(false)
+  const [draftSeconds, setDraftSeconds] = useState(0)
   const [saved, setSaved] = useState(false)
 
-  if (goal && !initialized) {
-    setDraft(formatDuration(goal.targetTimeSeconds))
-    setInitialized(true)
-  }
-
-  const draftSeconds = parseDurationToSeconds(draft)
   const zones = draftSeconds > 0 ? computePaceZones(draftSeconds) : null
 
   async function handleSave() {
@@ -104,16 +92,9 @@ function GoalSection() {
 
   return (
     <SectionCard title="Goal time">
-      <div className="flex items-center gap-2">
-        <input
-          type="text"
-          inputMode="numeric"
-          placeholder="4:30:00"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          className={inputClass}
-        />
-        <button onClick={handleSave} className={`${primaryButtonClass} shrink-0`}>
+      <div className="flex flex-col gap-3">
+        <DurationInput seconds={goal?.targetTimeSeconds ?? 0} onChange={setDraftSeconds} />
+        <button onClick={handleSave} className={primaryButtonClass}>
           Save
         </button>
       </div>
