@@ -57,9 +57,12 @@ function groupByMonth(runs: Run[]): MonthGroup[] {
     }))
 }
 
-function RunRow({ run }: { run: Run }) {
+function RunRow({ run, onSelect }: { run: Run; onSelect: (run: Run) => void }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
+    <button
+      onClick={() => onSelect(run)}
+      className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-3 text-left"
+    >
       <div className="flex w-14 shrink-0 flex-col items-start">
         <span className="text-[11px] uppercase text-ink-faint">
           {formatDisplayDate(run.date).slice(0, 3)}
@@ -78,13 +81,14 @@ function RunRow({ run }: { run: Run }) {
         </div>
         {run.note && <p className="mt-1 truncate text-xs text-ink-muted">{run.note}</p>}
       </div>
-    </div>
+    </button>
   )
 }
 
 export default function Log() {
   const runs = useLiveQuery(() => db.runs.orderBy('date').reverse().toArray(), [])
   const [showAddForm, setShowAddForm] = useState(false)
+  const [selectedRun, setSelectedRun] = useState<Run | null>(null)
 
   if (!runs) {
     return (
@@ -126,7 +130,7 @@ export default function Log() {
             </div>
             <div className="flex flex-col gap-2">
               {group.runs.map((run) => (
-                <RunRow key={run.id} run={run} />
+                <RunRow key={run.id} run={run} onSelect={setSelectedRun} />
               ))}
             </div>
           </section>
@@ -139,6 +143,16 @@ export default function Log() {
             session={null}
             onSaved={() => setShowAddForm(false)}
             onCancel={() => setShowAddForm(false)}
+          />
+        </Modal>
+      )}
+
+      {selectedRun && (
+        <Modal title="Edit run" onClose={() => setSelectedRun(null)}>
+          <LogRunForm
+            run={selectedRun}
+            onSaved={() => setSelectedRun(null)}
+            onCancel={() => setSelectedRun(null)}
           />
         </Modal>
       )}
