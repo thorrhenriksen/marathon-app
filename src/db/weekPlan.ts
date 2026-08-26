@@ -1,5 +1,5 @@
-// Static seed data for the fixed 36-week marathon training plan.
-// Race: London Marathon, Sunday 2027-04-25. Week 1 starts Monday 2026-08-17.
+// Static seed data for the fixed 35-week marathon training plan.
+// Race: London Marathon, Sunday 2027-04-25. Week 1 starts Monday 2026-08-24.
 //
 // dayOffset: 0=Monday .. 6=Sunday (plan week starts on Monday).
 // This is a DIFFERENT convention from src/lib/dates.ts#getWeekdayIndex,
@@ -48,31 +48,30 @@ function long(dayOffset: number, distanceKm: number, description = 'Long run'): 
 }
 
 export const WEEK_PLAN: WeekSeed[] = [
-  // ---------- Phase 1 — Base building, weeks 1-8 (Tue/Thu/Sun) ----------
-  { week: 1, phase: 1, targetVolumeKm: 15, sessions: [easy(TUE, 5), easy(THU, 5), long(SUN, 5)] },
-  { week: 2, phase: 1, targetVolumeKm: 17, sessions: [easy(TUE, 5), easy(THU, 6), long(SUN, 6)] },
-  { week: 3, phase: 1, targetVolumeKm: 19, sessions: [easy(TUE, 6), easy(THU, 6), long(SUN, 7)] },
-  { week: 4, phase: 1, targetVolumeKm: 15, sessions: [easy(TUE, 5), easy(THU, 5), long(SUN, 5)] },
-  { week: 5, phase: 1, targetVolumeKm: 20, sessions: [easy(TUE, 6), easy(THU, 6), long(SUN, 8)] },
-  { week: 6, phase: 1, targetVolumeKm: 22, sessions: [easy(TUE, 6), easy(THU, 7), long(SUN, 9)] },
-  { week: 7, phase: 1, targetVolumeKm: 24, sessions: [easy(TUE, 7), easy(THU, 7), long(SUN, 10)] },
-  { week: 8, phase: 1, targetVolumeKm: 18, sessions: [easy(TUE, 5), easy(THU, 6), long(SUN, 7)] },
+  // ---------- Phase 1 — Base building, weeks 1-7 (Tue/Thu/Sun) ----------
+  { week: 1, phase: 1, targetVolumeKm: 17, sessions: [easy(TUE, 5), easy(THU, 6), long(SUN, 6)] },
+  { week: 2, phase: 1, targetVolumeKm: 19, sessions: [easy(TUE, 6), easy(THU, 6), long(SUN, 7)] },
+  { week: 3, phase: 1, targetVolumeKm: 15, sessions: [easy(TUE, 5), easy(THU, 5), long(SUN, 5)] },
+  { week: 4, phase: 1, targetVolumeKm: 20, sessions: [easy(TUE, 6), easy(THU, 6), long(SUN, 8)] },
+  { week: 5, phase: 1, targetVolumeKm: 22, sessions: [easy(TUE, 6), easy(THU, 7), long(SUN, 9)] },
+  { week: 6, phase: 1, targetVolumeKm: 24, sessions: [easy(TUE, 7), easy(THU, 7), long(SUN, 10)] },
+  { week: 7, phase: 1, targetVolumeKm: 18, sessions: [easy(TUE, 5), easy(THU, 6), long(SUN, 7)] },
 
-  // ---------- Phase 2 — Aerobic development, weeks 9-20 (Tue/Thu/Sat/Sun) ----------
+  // ---------- Phase 2 — Aerobic development, weeks 8-19 (Tue/Thu/Sat/Sun) ----------
   {
-    week: 9,
+    week: 8,
     phase: 2,
     targetVolumeKm: 26,
     sessions: [easy(TUE, 5), easy(THU, 6), easy(SAT, 5), long(SUN, 10)],
   },
   {
-    week: 10,
+    week: 9,
     phase: 2,
     targetVolumeKm: 28,
     sessions: [easy(TUE, 5), easy(THU, 6), easy(SAT, 6), long(SUN, 11)],
   },
   {
-    week: 11,
+    week: 10,
     phase: 2,
     targetVolumeKm: 30,
     sessions: [
@@ -83,7 +82,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 12,
+    week: 11,
     phase: 2,
     targetVolumeKm: 24,
     isCutback: true,
@@ -95,7 +94,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 13,
+    week: 12,
     phase: 2,
     targetVolumeKm: 31,
     sessions: [
@@ -106,7 +105,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 14,
+    week: 13,
     phase: 2,
     targetVolumeKm: 33,
     sessions: [
@@ -117,7 +116,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 15,
+    week: 14,
     phase: 2,
     targetVolumeKm: 35,
     sessions: [
@@ -128,7 +127,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 16,
+    week: 15,
     phase: 2,
     targetVolumeKm: 27,
     isCutback: true,
@@ -140,7 +139,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 17,
+    week: 16,
     phase: 2,
     targetVolumeKm: 37,
     sessions: [
@@ -151,7 +150,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 18,
+    week: 17,
     phase: 2,
     targetVolumeKm: 33,
     sessions: [
@@ -162,7 +161,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 19,
+    week: 18,
     phase: 2,
     targetVolumeKm: 28,
     isHolidayMaintenance: true,
@@ -174,7 +173,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 20,
+    week: 19,
     phase: 2,
     targetVolumeKm: 32,
     isHolidayMaintenance: true,
@@ -186,9 +185,9 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
 
-  // ---------- Phase 3 — Marathon block, weeks 21-33 (Tue/Thu/Sat/Sun) ----------
+  // ---------- Phase 3 — Marathon block, weeks 20-32 (Tue/Thu/Sat/Sun) ----------
   {
-    week: 21,
+    week: 20,
     phase: 3,
     targetVolumeKm: 36,
     sessions: [
@@ -199,7 +198,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 22,
+    week: 21,
     phase: 3,
     targetVolumeKm: 39,
     sessions: [
@@ -215,7 +214,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 23,
+    week: 22,
     phase: 3,
     targetVolumeKm: 32,
     isCutback: true,
@@ -227,7 +226,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 24,
+    week: 23,
     phase: 3,
     targetVolumeKm: 42,
     sessions: [
@@ -238,7 +237,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 25,
+    week: 24,
     phase: 3,
     targetVolumeKm: 44,
     sessions: [
@@ -254,7 +253,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 26,
+    week: 25,
     phase: 3,
     targetVolumeKm: 47,
     sessions: [
@@ -270,7 +269,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 27,
+    week: 26,
     phase: 3,
     targetVolumeKm: 35,
     isCutback: true,
@@ -282,7 +281,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 28,
+    week: 27,
     phase: 3,
     targetVolumeKm: 49,
     sessions: [
@@ -298,7 +297,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 29,
+    week: 28,
     phase: 3,
     targetVolumeKm: 40.1,
     isHalfMarathonWeek: true,
@@ -310,7 +309,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 30,
+    week: 29,
     phase: 3,
     targetVolumeKm: 51,
     sessions: [
@@ -326,7 +325,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 31,
+    week: 30,
     phase: 3,
     targetVolumeKm: 54,
     sessions: [
@@ -342,7 +341,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 32,
+    week: 31,
     phase: 3,
     targetVolumeKm: 40,
     isCutback: true,
@@ -354,7 +353,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 33,
+    week: 32,
     phase: 3,
     targetVolumeKm: 55,
     sessions: [
@@ -370,9 +369,9 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
 
-  // ---------- Phase 4 — Taper, weeks 34-36 ----------
+  // ---------- Phase 4 — Taper, weeks 33-35 ----------
   {
-    week: 34,
+    week: 33,
     phase: 4,
     targetVolumeKm: 40,
     sessions: [
@@ -388,7 +387,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 35,
+    week: 34,
     phase: 4,
     targetVolumeKm: 28,
     sessions: [
@@ -404,7 +403,7 @@ export const WEEK_PLAN: WeekSeed[] = [
     ],
   },
   {
-    week: 36,
+    week: 35,
     phase: 4,
     targetVolumeKm: 53.2,
     isRaceWeek: true,

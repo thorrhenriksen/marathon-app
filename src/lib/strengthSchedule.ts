@@ -1,4 +1,4 @@
-// Generates the full 36-week strength/mobility session schedule, mirroring
+// Generates the full 35-week strength/mobility session schedule, mirroring
 // the shape/conventions of generatePlan() in src/db/seed.ts.
 
 import { addDays } from './dates'
@@ -17,9 +17,9 @@ import type { Session, StrengthVariant } from '../types'
 const MONDAY_OFFSET = 0
 const WEDNESDAY_OFFSET = 2
 const SUNDAY_OFFSET = 6
-const MARATHON_BLOCK_START_WEEK = 21
-const TAPER_START_WEEK = 34
-const RACE_WEEK = 36
+const MARATHON_BLOCK_START_WEEK = 20
+const TAPER_START_WEEK = 33
+const RACE_WEEK = 35
 const LONG_RUN_DOWNGRADE_THRESHOLD_KM = 26
 
 function findWeekSeed(week: number) {

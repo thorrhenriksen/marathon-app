@@ -5,6 +5,7 @@ import Log from './screens/Log'
 import Progress from './screens/Progress'
 import Settings from './screens/Settings'
 import { seedDatabaseIfEmpty } from './db/seed'
+import { runWeekRebaseMigration } from './db/weekRebaseMigration'
 import { requestPersistentStorage } from './lib/storage'
 import { SessionDetailProvider } from './context/SessionDetailContext'
 
@@ -83,6 +84,7 @@ function App() {
   useEffect(() => {
     let cancelled = false
     async function init() {
+      await runWeekRebaseMigration()
       await seedDatabaseIfEmpty()
       await requestPersistentStorage()
       if (!cancelled) setReady(true)

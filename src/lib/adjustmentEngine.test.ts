@@ -27,10 +27,10 @@ describe('adjustmentEngine', () => {
 
   describe('Rule 1: sessions inside the range are marked skipped', () => {
     it('marks the in-range session as no longer planned', () => {
-      const timeOff: TimeOff = { id: 't1', startDate: '2026-08-18', endDate: '2026-08-18', label: 'illness' }
+      const timeOff: TimeOff = { id: 't1', startDate: '2026-08-25', endDate: '2026-08-25', label: 'illness' }
       const result = computeAdjustment(timeOff, sessions, weeks, settings)
 
-      const tuesdaySession = sessions.find((s) => s.date === '2026-08-18')
+      const tuesdaySession = sessions.find((s) => s.date === '2026-08-25')
       expect(tuesdaySession).toBeDefined()
 
       const updated = result.updatedSessions.find((s) => s.id === tuesdaySession!.id)
@@ -40,7 +40,7 @@ describe('adjustmentEngine', () => {
   })
 
   describe('Rule 2: short gap (1-3 days) redistribution', () => {
-    // Week 9 (Monday 2026-10-12): Tue 10-13, Thu 10-15, Sat 10-17, Sun-long 10-18
+    // Week 8 (Monday 2026-10-12): Tue 10-13, Thu 10-15, Sat 10-17, Sun-long 10-18
     const timeOff: TimeOff = { id: 't2', startDate: '2026-10-13', endDate: '2026-10-13', label: 'illness' }
 
     it('moves the missed session to a free preferred day not colliding with existing sessions', () => {
@@ -61,11 +61,11 @@ describe('adjustmentEngine', () => {
     it('drops the lowest-priority session when no free preferred day remains in the week', () => {
       // Force a scenario with no available slots: mark a week where all preferred days are
       // already used and take out one via time off, leaving no free preferred day to move to.
-      const week9Sessions = sessions.filter((s) => s.week === 9)
-      expect(week9Sessions.length).toBeGreaterThan(0)
+      const week8Sessions = sessions.filter((s) => s.week === 8)
+      expect(week8Sessions.length).toBeGreaterThan(0)
 
       // Occupy all preferred offsets except the one being taken off, by using the real seed
-      // (Tue/Thu/Sat/Sun are already fully used in week 9), so the missed Tuesday session has
+      // (Tue/Thu/Sat/Sun are already fully used in week 8), so the missed Tuesday session has
       // no free preferred day left within the week and should be marked skipped.
       const result = computeAdjustment(timeOff, sessions, weeks, settings)
       const missed = sessions.find((s) => s.date === '2026-10-13')!
@@ -77,13 +77,13 @@ describe('adjustmentEngine', () => {
 
     it('never creates more than two consecutive running days in the affected week', () => {
       const result = computeAdjustment(timeOff, sessions, weeks, settings)
-      const week9Sessions = sessions.filter((s) => s.week === 9)
+      const week8Sessions = sessions.filter((s) => s.week === 8)
       const finalDates = new Map<string, string>()
-      for (const s of week9Sessions) finalDates.set(s.id, s.date)
+      for (const s of week8Sessions) finalDates.set(s.id, s.date)
       for (const u of result.updatedSessions) {
-        if (week9Sessions.some((s) => s.id === u.id) && u.status === 'moved') {
+        if (week8Sessions.some((s) => s.id === u.id) && u.status === 'moved') {
           finalDates.set(u.id, u.date)
-        } else if (week9Sessions.some((s) => s.id === u.id) && u.status === 'skipped') {
+        } else if (week8Sessions.some((s) => s.id === u.id) && u.status === 'skipped') {
           finalDates.delete(u.id)
         }
       }
@@ -111,20 +111,20 @@ describe('adjustmentEngine', () => {
 
   describe('Rule 3: medium gap (4-10 days) inserts a re-entry week at ~85% volume', () => {
     it('inserts a re-entry week and skips the original return week', () => {
-      sessions = markCompleted(sessions, 20)
+      sessions = markCompleted(sessions, 19)
       const timeOff: TimeOff = { id: 't3', startDate: '2027-01-08', endDate: '2027-01-13', label: 'illness' }
       const result = computeAdjustment(timeOff, sessions, weeks, settings)
 
-      expect(result.returnWeekNumber).toBe(22)
+      expect(result.returnWeekNumber).toBe(21)
       expect(result.insertedSessions.length).toBeGreaterThan(0)
 
-      const week20 = sessions.filter((s) => s.week === 20)
-      const week20Volume = week20.reduce((sum, s) => sum + s.plannedDistanceKm, 0)
+      const week19 = sessions.filter((s) => s.week === 19)
+      const week19Volume = week19.reduce((sum, s) => sum + s.plannedDistanceKm, 0)
       const insertedVolume = result.insertedSessions.reduce((sum, s) => sum + s.plannedDistanceKm, 0)
-      expect(insertedVolume).toBeCloseTo(week20Volume * 0.85, 0)
-      expect(insertedVolume).toBeLessThan(week20Volume)
+      expect(insertedVolume).toBeCloseTo(week19Volume * 0.85, 0)
+      expect(insertedVolume).toBeLessThan(week19Volume)
 
-      const returnWeekSessions = sessions.filter((s) => s.week === 22)
+      const returnWeekSessions = sessions.filter((s) => s.week === 21)
       for (const rs of returnWeekSessions) {
         const updated = result.updatedSessions.find((u) => u.id === rs.id)
         expect(updated).toBeDefined()
@@ -135,7 +135,7 @@ describe('adjustmentEngine', () => {
 
   describe('Rule 4: long gap (>10 days) steps back an additional two weeks for the template', () => {
     it('uses an earlier template week than the equivalent medium gap', () => {
-      const completedSessions = markCompleted(sessions, 20)
+      const completedSessions = markCompleted(sessions, 19)
 
       const mediumTimeOff: TimeOff = { id: 't4a', startDate: '2027-01-08', endDate: '2027-01-13', label: 'illness' }
       const mediumResult = computeAdjustment(mediumTimeOff, completedSessions, weeks, settings)
@@ -143,9 +143,9 @@ describe('adjustmentEngine', () => {
       const longTimeOff: TimeOff = { id: 't4b', startDate: '2027-01-08', endDate: '2027-01-20', label: 'illness' }
       const longResult = computeAdjustment(longTimeOff, completedSessions, weeks, settings)
 
-      expect(mediumResult.reEntryTemplateWeek).toBe(20)
-      expect(longResult.reEntryTemplateWeek).toBe(18)
-      expect(longResult.returnWeekNumber).toBe(23)
+      expect(mediumResult.reEntryTemplateWeek).toBe(19)
+      expect(longResult.reEntryTemplateWeek).toBe(17)
+      expect(longResult.returnWeekNumber).toBe(22)
 
       const mediumTotal = mediumResult.insertedSessions.reduce((sum, s) => sum + s.plannedDistanceKm, 0)
       const longTotal = longResult.insertedSessions.reduce((sum, s) => sum + s.plannedDistanceKm, 0)
@@ -153,21 +153,21 @@ describe('adjustmentEngine', () => {
     })
   })
 
-  describe('Rule 5: protected weeks (29-36) are never used as a re-entry template', () => {
-    it('backs off to week 28 when the natural template would land in the protected range', () => {
-      const completedSessions = markCompleted(sessions, 33)
+  describe('Rule 5: protected weeks (28-35) are never used as a re-entry template', () => {
+    it('backs off to week 27 when the natural template would land in the protected range', () => {
+      const completedSessions = markCompleted(sessions, 32)
       const timeOff: TimeOff = { id: 't5', startDate: '2027-04-06', endDate: '2027-04-11', label: 'illness' }
       const result = computeAdjustment(timeOff, completedSessions, weeks, settings)
 
-      expect(result.reEntryTemplateWeek).toBe(28)
+      expect(result.reEntryTemplateWeek).toBe(27)
     })
   })
 
   describe('moveSessionToDate', () => {
     it('moves a session to a new date within the same plan week', () => {
-      const week5Meta = weeks.find((w) => w.week === 5)!
-      const session = sessions.find((s) => s.week === 5 && s.type === 'easy')!
-      const moved = moveSessionToDate(session, '2026-09-17', week5Meta)
+      const week4Meta = weeks.find((w) => w.week === 4)!
+      const session = sessions.find((s) => s.week === 4 && s.type === 'easy')!
+      const moved = moveSessionToDate(session, '2026-09-17', week4Meta)
 
       expect(moved).not.toBeNull()
       expect(moved!.date).toBe('2026-09-17')
@@ -176,9 +176,9 @@ describe('adjustmentEngine', () => {
     })
 
     it('rejects a target date outside the session\'s plan week', () => {
-      const week5Meta = weeks.find((w) => w.week === 5)!
-      const session = sessions.find((s) => s.week === 5)!
-      const moved = moveSessionToDate(session, '2099-01-01', week5Meta)
+      const week4Meta = weeks.find((w) => w.week === 4)!
+      const session = sessions.find((s) => s.week === 4)!
+      const moved = moveSessionToDate(session, '2099-01-01', week4Meta)
 
       expect(moved).toBeNull()
     })

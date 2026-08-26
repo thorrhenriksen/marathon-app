@@ -261,7 +261,7 @@ export default function Plan() {
 
   return (
     <div className="flex flex-col gap-6 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
-      <h1 className="text-lg font-semibold text-ink">36-week plan</h1>
+      <h1 className="text-lg font-semibold text-ink">35-week plan</h1>
 
       {weeksByPhase.map(([phase, phaseWeeks]) => (
         <section key={phase}>

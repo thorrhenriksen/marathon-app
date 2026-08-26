@@ -16,7 +16,7 @@ export interface AdjustmentPreview {
   reEntryTemplateWeek?: number
 }
 
-const PROTECTED_WEEKS = new Set([29, 30, 31, 32, 33, 34, 35, 36])
+const PROTECTED_WEEKS = new Set([28, 29, 30, 31, 32, 33, 34, 35])
 
 const SESSION_PRIORITY: Record<SessionType, number> = {
   long: 4,

@@ -1,4 +1,4 @@
-// Generates the concrete 36-week plan from the WEEK_PLAN seed data and
+// Generates the concrete 35-week plan from the WEEK_PLAN seed data and
 // handles initial database seeding.
 
 import { db } from './db'
@@ -9,14 +9,14 @@ import { generateStrengthSessions } from '../lib/strengthSchedule'
 import type { Session, WeekMeta } from '../types'
 
 export const RACE_DATE = '2027-04-25'
-export const PLAN_START_DATE = '2026-08-17'
+export const PLAN_START_DATE = '2026-08-24'
 
 export function weekStartDate(week: number): string {
   return addDays(PLAN_START_DATE, (week - 1) * 7)
 }
 
 function computeIsTaper(week: number): boolean {
-  return week >= 34
+  return week >= 33
 }
 
 /** Builds the full set of Session and WeekMeta records from the static plan. */

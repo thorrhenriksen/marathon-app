@@ -423,7 +423,7 @@ function ResetPlanSection() {
   return (
     <SectionCard title="Reset plan">
       <p className="mb-3 text-xs text-ink-faint">
-        Resets your training plan and completion status back to the original 36-week schedule. Logged
+        Resets your training plan and completion status back to the original 35-week schedule. Logged
         runs, your goal, time-off history, and preferences are not affected.
       </p>
       <button onClick={() => setShowConfirm(true)} className={dangerButtonClass}>
@@ -435,7 +435,7 @@ function ResetPlanSection() {
         <Modal title="Reset to original plan?" onClose={() => setShowConfirm(false)}>
           <div className="flex flex-col gap-3">
             <p className="text-sm text-ink-muted">
-              This replaces all planned sessions and week data with the original 36-week schedule. Any
+              This replaces all planned sessions and week data with the original 35-week schedule. Any
               moves, skips, or re-entry weeks from time-off adjustments will be lost. This cannot be
               undone.
             </p>
