@@ -97,14 +97,14 @@ function App() {
 
   if (!ready) {
     return (
-      <div className="flex h-full items-center justify-center bg-bg">
+      <div className="flex h-dvh items-center justify-center bg-bg">
         <p className="text-sm text-ink-faint">Loading…</p>
       </div>
     )
   }
 
   return (
-    <div className="mx-auto flex h-full max-w-md flex-col bg-bg text-ink">
+    <div className="mx-auto flex h-dvh max-w-md flex-col bg-bg text-ink">
       <div className="flex-1 overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom))]">
         <SessionDetailProvider>
           {activeTab === 'today' && <Today />}

@@ -38,12 +38,12 @@ export default function BottomSheet({ onClose, children }: BottomSheetProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-surface pb-[env(safe-area-inset-bottom)]"
+        className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-surface pb-[env(safe-area-inset-bottom)]"
         style={{ transform: `translateY(${dragY}px)`, transition: dragging ? 'none' : 'transform 0.2s ease-out' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="flex shrink-0 cursor-grab touch-none justify-center py-2 active:cursor-grabbing"
+          className="flex min-h-[max(44px,calc(env(safe-area-inset-top)+24px))] shrink-0 cursor-grab touch-none items-center justify-center pt-[env(safe-area-inset-top)] active:cursor-grabbing"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
