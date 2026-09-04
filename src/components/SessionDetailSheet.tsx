@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { addDays, formatDisplayDateLong, todayISO } from '../lib/dates'
-import { getDisplayStatus } from '../lib/sessionStatus'
+import { canMarkMissed } from '../lib/sessionStatus'
 import {
   computePaceZones,
   DEFAULT_GOAL_SECONDS,
@@ -84,7 +84,7 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
 
   const canAct = session.status !== 'completed'
   const canLog = session.type !== 'rest' && session.type !== 'strength' && session.status !== 'skipped'
-  const displayStatus = getDisplayStatus(session, todayISO())
+  const canMissThisSession = canMarkMissed(session, todayISO())
 
   async function handleMove() {
     if (!weekMeta) return
@@ -312,7 +312,7 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
                   </button>
                 )}
 
-                {displayStatus === 'unlogged' && (
+                {canMissThisSession && (
                   <button
                     onClick={handleMarkMissed}
                     className="w-full rounded-xl border border-danger/40 py-3 text-sm font-medium text-danger"

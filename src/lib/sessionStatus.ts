@@ -12,18 +12,29 @@ import type { Session } from '../types'
 export type DisplayStatus = 'completed' | 'missed' | 'handled' | 'unlogged' | 'planned'
 
 export function getDisplayStatus(session: Session, today: string): DisplayStatus {
+  // Rest days have nothing to log or miss — never flag them as unlogged/missed.
+  if (session.type === 'rest') return 'planned'
   if (session.status === 'completed') return 'completed'
   if (session.status === 'missed') return 'missed'
-  if (
-    session.status === 'handled' ||
-    session.status === 'downgraded-to-mobility' ||
-    session.status === 'skipped' ||
-    session.status === 'moved'
-  ) {
+  if (session.status === 'handled' || session.status === 'downgraded-to-mobility' || session.status === 'skipped') {
     return 'handled'
   }
+  // 'moved' just means this session happened on a different day than
+  // originally planned — it still needs completing, so it follows the same
+  // unresolved/unlogged pipeline as a normal planned session, keyed off its
+  // (possibly moved) date.
   if (session.date < today) return 'unlogged'
   return 'planned'
+}
+
+/** True for any non-rest, unresolved session today or in the past — the only
+ *  cases where "Mark as missed" makes sense. */
+export function canMarkMissed(session: Session, today: string): boolean {
+  return (
+    session.type !== 'rest' &&
+    (session.status === 'planned' || session.status === 'moved') &&
+    session.date <= today
+  )
 }
 
 export interface DisplayStatusStyle {
