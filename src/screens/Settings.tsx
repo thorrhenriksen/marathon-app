@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { formatDisplayDate, todayISO } from '../lib/dates'
+import { isStoragePersisted } from '../lib/storage'
 import { computePaceZones, formatPace, formatPaceRange } from '../lib/paceZones'
 import { computeAdjustment, type AdjustmentPreview } from '../lib/adjustmentEngine'
 import { applyTimeOff } from '../db/timeOffAdjustments'
@@ -428,6 +429,11 @@ function PreferredDaysSection() {
 
 function BackupSection() {
   const [message, setMessage] = useState<string | null>(null)
+  const [storagePersisted, setStoragePersisted] = useState(true)
+
+  useEffect(() => {
+    isStoragePersisted().then(setStoragePersisted)
+  }, [])
 
   async function handleExport() {
     const [sessions, runs, goals, timeOff, settings, weeks] = await Promise.all([
@@ -508,6 +514,11 @@ function BackupSection() {
           <input type="file" accept="application/json" onChange={handleImportChange} className="hidden" />
         </label>
         {message && <p className="text-xs text-ink-muted">{message}</p>}
+        {!storagePersisted && (
+          <p className="text-xs text-warning">
+            Storage isn't guaranteed by the browser — keep backups in case data is evicted.
+          </p>
+        )}
       </div>
     </SectionCard>
   )

@@ -8,6 +8,7 @@ import { seedDatabaseIfEmpty } from './db/seed'
 import { runWeekRebaseMigration } from './db/weekRebaseMigration'
 import { requestPersistentStorage } from './lib/storage'
 import { SessionDetailProvider } from './context/SessionDetailContext'
+import UpdateBanner from './components/UpdateBanner'
 
 type Tab = 'today' | 'plan' | 'log' | 'progress' | 'settings'
 
@@ -105,6 +106,7 @@ function App() {
 
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col bg-bg text-ink">
+      <UpdateBanner />
       <div className="flex-1 overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom))]">
         <SessionDetailProvider>
           {activeTab === 'today' && <Today />}
