@@ -13,9 +13,12 @@ import {
 } from 'recharts'
 import { db } from '../db/db'
 import { addDays, todayISO } from '../lib/dates'
-import { formatPace } from '../lib/paceZones'
+import { formatPace, DEFAULT_GOAL_SECONDS } from '../lib/paceZones'
 import { computeAchievements, computeStreaks, computeAdherence, type Achievement } from '../lib/achievements'
+import StatisticsSection from '../components/StatisticsSection'
 import type { Run, Session, WeekMeta } from '../types'
+
+type ProgressTab = 'statistics' | 'achievements'
 
 const GRID_COLOR = 'var(--chart-grid)'
 const AXIS_COLOR = 'var(--chart-axis)'
@@ -173,36 +176,38 @@ function AchievementTile({ achievement }: { achievement: Achievement }) {
   )
 }
 
-function AchievementsSection({
-  achievements,
-  isExpanded,
-  hasUnseenUnlock,
-  onToggle,
-}: {
-  achievements: Achievement[]
-  isExpanded: boolean
-  hasUnseenUnlock: boolean
-  onToggle: () => void
-}) {
+function AchievementsSection({ achievements }: { achievements: Achievement[] }) {
   const unlockedCount = achievements.filter((a) => a.unlocked).length
 
   return (
-    <section className="rounded-2xl border border-border bg-surface">
-      <button onClick={onToggle} className="flex w-full items-center justify-between gap-3 p-4 text-left">
-        <span className="flex items-center gap-2 text-sm font-medium text-ink">
-          Achievements — {unlockedCount} of {achievements.length} unlocked
-          {!isExpanded && hasUnseenUnlock && <span className="h-2 w-2 rounded-full bg-accent" />}
-        </span>
-        <span className={`shrink-0 text-ink-faint transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▾</span>
-      </button>
-      {isExpanded && (
-        <div className="grid grid-cols-3 gap-1.5 px-4 pb-4">
-          {achievements.map((achievement) => (
-            <AchievementTile key={achievement.id} achievement={achievement} />
-          ))}
-        </div>
-      )}
+    <section className="rounded-2xl border border-border bg-surface p-4">
+      <h2 className="mb-2 text-sm font-medium text-ink">
+        Achievements — {unlockedCount} of {achievements.length} unlocked
+      </h2>
+      <div className="grid grid-cols-3 gap-1.5">
+        {achievements.map((achievement) => (
+          <AchievementTile key={achievement.id} achievement={achievement} />
+        ))}
+      </div>
     </section>
+  )
+}
+
+function ProgressTabs({ tab, onChange }: { tab: ProgressTab; onChange: (tab: ProgressTab) => void }) {
+  return (
+    <div className="flex rounded-full bg-surface-inset p-1">
+      {(['statistics', 'achievements'] as ProgressTab[]).map((t) => (
+        <button
+          key={t}
+          onClick={() => onChange(t)}
+          className={`flex-1 rounded-full py-1.5 text-sm font-medium capitalize ${
+            tab === t ? 'bg-surface text-ink shadow-sm' : 'text-ink-faint'
+          }`}
+        >
+          {t}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -213,6 +218,7 @@ export default function Progress() {
   const runs = useLiveQuery(() => db.runs.orderBy('date').toArray(), [])
   const timeOffEntries = useLiveQuery(() => db.timeOff.toArray(), [])
   const settings = useLiveQuery(() => db.settings.get('settings'), [])
+  const goal = useLiveQuery(() => db.goals.get('goal'), [])
 
   const [newlyUnlocked, setNewlyUnlocked] = useState<Achievement[]>([])
 
@@ -273,11 +279,10 @@ export default function Progress() {
     setNewlyUnlocked((prev) => prev.filter((a) => a.id !== id))
   }
 
-  const achievementsExpanded = settings?.achievementsExpanded ?? false
+  const tab: ProgressTab = settings?.progressTab ?? 'statistics'
 
-  function toggleAchievements() {
-    const next = !achievementsExpanded
-    db.settings.update('settings', { achievementsExpanded: next, ...(next ? { achievementsHasUnseenUnlock: false } : {}) })
+  function setTab(next: ProgressTab) {
+    db.settings.update('settings', { progressTab: next, ...(next === 'achievements' ? { achievementsHasUnseenUnlock: false } : {}) })
   }
 
   if (!weeks || !sessions || !runs) {
@@ -302,162 +307,171 @@ export default function Progress() {
         />
       ))}
 
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Total distance" value={`${totalKm.toFixed(1)} km`} />
-        <StatCard label="Sessions completed" value={`${totalSessionsCompleted}`} />
-        <StatCard label="Plan adherence" value={`${adherence}%`} />
-        <StatCard label="Current streak" value={`${streaks.current} ${streaks.current === 1 ? 'week' : 'weeks'}`} />
-      </div>
+      <ProgressTabs tab={tab} onChange={setTab} />
 
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Best streak" value={`${streaks.longest} ${streaks.longest === 1 ? 'week' : 'weeks'}`} />
-        <StatCard
-          label="Strength adherence"
-          value={`${strengthAdherence.completed}/${strengthAdherence.planned} · ${strengthAdherence.streak} streak`}
-        />
-      </div>
-
-      {!hasRuns ? (
-        <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-ink-faint">
-          No runs logged yet. Charts will appear here once you start logging runs.
-        </div>
-      ) : (
+      {tab === 'statistics' ? (
         <>
-          <section>
-            <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">
-              Weekly volume
-            </h2>
-            <div className="rounded-2xl border border-border bg-surface p-4">
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={weeklyVolume}>
-                  <CartesianGrid stroke={GRID_COLOR} vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fill: AXIS_COLOR, fontSize: 10 }}
-                    axisLine={{ stroke: GRID_COLOR }}
-                    tickLine={false}
-                    interval={3}
-                  />
-                  <YAxis
-                    tick={{ fill: AXIS_COLOR, fontSize: 10 }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={28}
-                  />
-                  <Tooltip
-                    contentStyle={{ background: TOOLTIP_BG, border: `1px solid ${TOOLTIP_BORDER}`, fontSize: 12 }}
-                    labelStyle={{ color: TOOLTIP_TEXT }}
-                    formatter={(value, name) => [`${value} km`, name === 'planned' ? 'Planned' : 'Actual']}
-                  />
-                  <Bar dataKey="planned" fill={PLANNED_COLOR} radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="actual" fill={ACTUAL_COLOR} radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              <Legend items={[{ color: PLANNED_COLOR, label: 'Planned' }, { color: ACTUAL_COLOR, label: 'Actual' }]} />
-            </div>
-          </section>
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard label="Total distance" value={`${totalKm.toFixed(1)} km`} />
+            <StatCard label="Sessions completed" value={`${totalSessionsCompleted}`} />
+            <StatCard label="Plan adherence" value={`${adherence}%`} />
+            <StatCard label="Current streak" value={`${streaks.current} ${streaks.current === 1 ? 'week' : 'weeks'}`} />
+          </div>
 
-          <section>
-            <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">
-              Long run progression
-            </h2>
-            <div className="rounded-2xl border border-border bg-surface p-4">
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={longRunProgression}>
-                  <CartesianGrid stroke={GRID_COLOR} vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fill: AXIS_COLOR, fontSize: 10 }}
-                    axisLine={{ stroke: GRID_COLOR }}
-                    tickLine={false}
-                    interval={3}
-                  />
-                  <YAxis
-                    tick={{ fill: AXIS_COLOR, fontSize: 10 }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={28}
-                  />
-                  <Tooltip
-                    contentStyle={{ background: TOOLTIP_BG, border: `1px solid ${TOOLTIP_BORDER}`, fontSize: 12 }}
-                    labelStyle={{ color: TOOLTIP_TEXT }}
-                    formatter={(value, name) => [`${value} km`, name === 'planned' ? 'Planned' : 'Actual']}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="planned"
-                    stroke={PLANNED_COLOR}
-                    strokeDasharray="4 3"
-                    dot={false}
-                    strokeWidth={2}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="actual"
-                    stroke={LONG_RUN_COLOR}
-                    dot={{ r: 2, fill: LONG_RUN_COLOR }}
-                    strokeWidth={2}
-                    connectNulls={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-              <Legend items={[{ color: PLANNED_COLOR, label: 'Planned' }, { color: LONG_RUN_COLOR, label: 'Actual' }]} />
-            </div>
-          </section>
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard label="Best streak" value={`${streaks.longest} ${streaks.longest === 1 ? 'week' : 'weeks'}`} />
+            <StatCard
+              label="Strength adherence"
+              value={`${strengthAdherence.completed}/${strengthAdherence.planned} · ${strengthAdherence.streak} streak`}
+            />
+          </div>
 
-          <section>
-            <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">
-              Pace trend (easy runs)
-            </h2>
-            {paceTrend.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border p-4 text-center text-sm text-ink-faint">
-                No easy runs logged yet.
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-border bg-surface p-4">
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={paceTrend}>
-                    <CartesianGrid stroke={GRID_COLOR} vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fill: AXIS_COLOR, fontSize: 10 }}
-                      axisLine={{ stroke: GRID_COLOR }}
-                      tickLine={false}
-                      tickFormatter={(value: string) => value.slice(5)}
-                    />
-                    <YAxis
-                      tick={{ fill: AXIS_COLOR, fontSize: 10 }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={44}
-                      tickFormatter={(value: number) => formatPace(value)}
-                    />
-                    <Tooltip
-                      contentStyle={{ background: TOOLTIP_BG, border: `1px solid ${TOOLTIP_BORDER}`, fontSize: 12 }}
-                      labelStyle={{ color: TOOLTIP_TEXT }}
-                      formatter={(value) => [formatPace(Number(value)), 'Pace']}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="paceSecPerKm"
-                      stroke={PACE_COLOR}
-                      dot={{ r: 2, fill: PACE_COLOR }}
-                      strokeWidth={2}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </section>
+          {!hasRuns ? (
+            <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-ink-faint">
+              No runs logged yet. Charts will appear here once you start logging runs.
+            </div>
+          ) : (
+            <>
+              <section>
+                <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">
+                  Weekly volume
+                </h2>
+                <div className="rounded-2xl border border-border bg-surface p-4">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={weeklyVolume}>
+                      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fill: AXIS_COLOR, fontSize: 10 }}
+                        axisLine={{ stroke: GRID_COLOR }}
+                        tickLine={false}
+                        interval={3}
+                      />
+                      <YAxis
+                        tick={{ fill: AXIS_COLOR, fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={28}
+                      />
+                      <Tooltip
+                        contentStyle={{ background: TOOLTIP_BG, border: `1px solid ${TOOLTIP_BORDER}`, fontSize: 12 }}
+                        labelStyle={{ color: TOOLTIP_TEXT }}
+                        formatter={(value, name) => [`${value} km`, name === 'planned' ? 'Planned' : 'Actual']}
+                      />
+                      <Bar dataKey="planned" fill={PLANNED_COLOR} radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="actual" fill={ACTUAL_COLOR} radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <Legend items={[{ color: PLANNED_COLOR, label: 'Planned' }, { color: ACTUAL_COLOR, label: 'Actual' }]} />
+                </div>
+              </section>
+
+              <section>
+                <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">
+                  Long run progression
+                </h2>
+                <div className="rounded-2xl border border-border bg-surface p-4">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={longRunProgression}>
+                      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fill: AXIS_COLOR, fontSize: 10 }}
+                        axisLine={{ stroke: GRID_COLOR }}
+                        tickLine={false}
+                        interval={3}
+                      />
+                      <YAxis
+                        tick={{ fill: AXIS_COLOR, fontSize: 10 }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={28}
+                      />
+                      <Tooltip
+                        contentStyle={{ background: TOOLTIP_BG, border: `1px solid ${TOOLTIP_BORDER}`, fontSize: 12 }}
+                        labelStyle={{ color: TOOLTIP_TEXT }}
+                        formatter={(value, name) => [`${value} km`, name === 'planned' ? 'Planned' : 'Actual']}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="planned"
+                        stroke={PLANNED_COLOR}
+                        strokeDasharray="4 3"
+                        dot={false}
+                        strokeWidth={2}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="actual"
+                        stroke={LONG_RUN_COLOR}
+                        dot={{ r: 2, fill: LONG_RUN_COLOR }}
+                        strokeWidth={2}
+                        connectNulls={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <Legend items={[{ color: PLANNED_COLOR, label: 'Planned' }, { color: LONG_RUN_COLOR, label: 'Actual' }]} />
+                </div>
+              </section>
+
+              <section>
+                <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">
+                  Pace trend (easy runs)
+                </h2>
+                {paceTrend.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border p-4 text-center text-sm text-ink-faint">
+                    No easy runs logged yet.
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-border bg-surface p-4">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <LineChart data={paceTrend}>
+                        <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fill: AXIS_COLOR, fontSize: 10 }}
+                          axisLine={{ stroke: GRID_COLOR }}
+                          tickLine={false}
+                          tickFormatter={(value: string) => value.slice(5)}
+                        />
+                        <YAxis
+                          tick={{ fill: AXIS_COLOR, fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                          width={44}
+                          tickFormatter={(value: number) => formatPace(value)}
+                        />
+                        <Tooltip
+                          contentStyle={{ background: TOOLTIP_BG, border: `1px solid ${TOOLTIP_BORDER}`, fontSize: 12 }}
+                          labelStyle={{ color: TOOLTIP_TEXT }}
+                          formatter={(value) => [formatPace(Number(value)), 'Pace']}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="paceSecPerKm"
+                          stroke={PACE_COLOR}
+                          dot={{ r: 2, fill: PACE_COLOR }}
+                          strokeWidth={2}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+
+          <StatisticsSection
+            sessions={sessions}
+            runs={runs}
+            weeks={weeks}
+            goalSeconds={goal?.targetTimeSeconds ?? DEFAULT_GOAL_SECONDS}
+            today={today}
+          />
         </>
+      ) : (
+        <AchievementsSection achievements={achievements} />
       )}
-
-      <AchievementsSection
-        achievements={achievements}
-        isExpanded={achievementsExpanded}
-        hasUnseenUnlock={settings?.achievementsHasUnseenUnlock ?? false}
-        onToggle={toggleAchievements}
-      />
     </div>
   )
 }

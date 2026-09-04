@@ -119,6 +119,8 @@ export interface Settings {
   achievementsHasUnseenUnlock?: boolean
   /** Persisted last-selected segment of the Train tab. */
   trainViewTab?: 'week' | 'log'
+  /** Persisted last-selected segment of the Progress tab. */
+  progressTab?: 'statistics' | 'achievements'
 }
 
 export type Phase = 1 | 2 | 3 | 4
