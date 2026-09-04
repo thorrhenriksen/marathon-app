@@ -19,6 +19,7 @@ import AdjustmentSummaryModal from '../components/AdjustmentSummaryModal'
 import SessionCard from '../components/SessionCard'
 import WeekStrip from '../components/WeekStrip'
 import MonthCalendar from '../components/MonthCalendar'
+import RecoveryCard from '../components/RecoveryCard'
 
 type CalendarView = 'week' | 'month'
 
@@ -110,6 +111,9 @@ export default function Today() {
           </div>
         )}
       </section>
+
+      {/* Recovery advisor */}
+      <RecoveryCard />
 
       {/* Calendar navigation */}
       <section>

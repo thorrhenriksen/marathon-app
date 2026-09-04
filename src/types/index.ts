@@ -58,6 +58,8 @@ export interface Session {
   originalDate?: string
   /** Set once a Run has been logged against this session. */
   linkedRunId?: string
+  /** ISO datetime — set alongside status: 'completed' for strength sessions. */
+  completedAt?: string
   /** Strength sessions only, below. */
   variant?: StrengthVariant
   exercises?: SessionExercise[]
@@ -90,6 +92,8 @@ export interface Run {
   effort: number
   note?: string
   linkedSessionId?: string
+  /** ISO datetime the run was logged at. Absent for older/legacy entries. */
+  loggedAt?: string
 }
 
 export interface Goal {

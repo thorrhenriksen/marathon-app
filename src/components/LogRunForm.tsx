@@ -25,12 +25,24 @@ const TYPE_OPTIONS: (SessionType | 'other')[] = [
   'other',
 ]
 
+/** Extracts "HH:MM" from an ISO datetime, in local time. */
+function timeFromISO(iso: string): string {
+  const d = new Date(iso)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+/** Combines a YYYY-MM-DD date and HH:MM time into an ISO datetime, in local time. */
+function combineDateAndTime(date: string, time: string): string {
+  return new Date(`${date}T${time}:00`).toISOString()
+}
+
 export default function LogRunForm({ session, run, onSaved, onCancel }: LogRunFormProps) {
   const [date, setDate] = useState(run?.date ?? session?.date ?? todayISO())
   const [distanceKm, setDistanceKm] = useState(
     run ? String(run.distanceKm) : session ? String(session.plannedDistanceKm) : '',
   )
   const [durationSeconds, setDurationSeconds] = useState(run?.durationSeconds ?? 0)
+  const [time, setTime] = useState(run?.loggedAt ? timeFromISO(run.loggedAt) : timeFromISO(new Date().toISOString()))
   const [effort, setEffort] = useState(run?.effort ?? 5)
   const [note, setNote] = useState(run?.note ?? '')
   const [type, setType] = useState<SessionType | 'other'>(
@@ -48,6 +60,7 @@ export default function LogRunForm({ session, run, onSaved, onCancel }: LogRunFo
     if (!canSave || saving) return
     setSaving(true)
     try {
+      const loggedAt = combineDateAndTime(date, time)
       if (run) {
         await db.runs.put({
           ...run,
@@ -58,6 +71,7 @@ export default function LogRunForm({ session, run, onSaved, onCancel }: LogRunFo
           type,
           effort,
           note: note.trim() || undefined,
+          loggedAt,
         })
       } else {
         const runId = crypto.randomUUID()
@@ -71,6 +85,7 @@ export default function LogRunForm({ session, run, onSaved, onCancel }: LogRunFo
           effort,
           note: note.trim() || undefined,
           linkedSessionId: session?.id,
+          loggedAt,
         })
         if (session) {
           await db.sessions.update(session.id, { status: 'completed', linkedRunId: runId })
@@ -95,16 +110,29 @@ export default function LogRunForm({ session, run, onSaved, onCancel }: LogRunFo
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-faint">
-          Date
-        </label>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-full rounded-lg border border-border bg-surface-inset px-3 py-3 text-base text-ink"
-        />
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-faint">
+            Date
+          </label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full rounded-lg border border-border bg-surface-inset px-3 py-3 text-base text-ink"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-faint">
+            Time
+          </label>
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="rounded-lg border border-border bg-surface-inset px-3 py-3 text-base text-ink"
+          />
+        </div>
       </div>
 
       <div>

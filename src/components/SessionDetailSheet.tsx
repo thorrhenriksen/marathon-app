@@ -116,6 +116,7 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
       exercises: completedExercises,
       status: 'completed',
       completionNote: completionNote.trim() || undefined,
+      completedAt: new Date().toISOString(),
     })
     onClose()
   }
