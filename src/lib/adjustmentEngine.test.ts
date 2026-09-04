@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { generatePlan } from '../db/seed'
-import { computeAdjustment, moveSessionToDate, applyNotFeeling100 } from './adjustmentEngine'
+import { generateStrengthSessions } from './strengthSchedule'
+import {
+  computeAdjustment,
+  moveSessionToDate,
+  applyNotFeeling100,
+  applySwapToMobilityOnly,
+  resetSessionOutcome,
+} from './adjustmentEngine'
 import type { Session, WeekMeta, Settings, TimeOff } from '../types'
 
 function markCompleted(sessions: Session[], upToWeek: number): Session[] {
@@ -201,6 +208,66 @@ describe('adjustmentEngine', () => {
       const adjusted = applyNotFeeling100(restSession)
       expect(adjusted.type).toBe('rest')
       expect(adjusted.status).toBe('handled')
+    })
+  })
+
+  describe('resetSessionOutcome', () => {
+    it('resets a completed run session back to planned, clearing the run link and completion fields', () => {
+      const runSession = sessions.find((s) => s.type === 'easy')!
+      const completed = {
+        ...runSession,
+        status: 'completed' as const,
+        linkedRunId: 'run-1',
+        completedAt: '2026-09-01T10:00:00.000Z',
+      }
+
+      const reset = resetSessionOutcome(completed)
+      expect(reset.status).toBe('planned')
+      expect(reset.linkedRunId).toBeUndefined()
+      expect(reset.completedAt).toBeUndefined()
+    })
+
+    it('resets a plain missed session back to planned', () => {
+      const runSession = sessions.find((s) => s.type === 'easy')!
+      const missed = { ...runSession, status: 'missed' as const }
+
+      const reset = resetSessionOutcome(missed)
+      expect(reset.status).toBe('planned')
+    })
+
+    it('restores full exercises when a strength session was downgraded-to-mobility then changed to missed', () => {
+      const strengthSession = generateStrengthSessions().find((s) => s.status === 'planned')!
+      const downgraded = applySwapToMobilityOnly(strengthSession)
+      expect(downgraded.status).toBe('downgraded-to-mobility')
+      expect(downgraded.exercises?.length).toBeLessThan(strengthSession.exercises?.length ?? Infinity)
+
+      // Status changes again after the downgrade (e.g. the user later marks it missed) —
+      // resetSessionOutcome must still detect the mobility-only exercise set and restore
+      // the full prescription, since it can no longer rely on the status field.
+      const downgradedThenMissed = { ...downgraded, status: 'missed' as const }
+
+      const reset = resetSessionOutcome(downgradedThenMissed)
+      expect(reset.status).toBe('planned')
+      expect(reset.exercises?.length).toBe(strengthSession.exercises?.length)
+      expect(reset.description).toBe(`Strength — Session ${strengthSession.variant}`)
+    })
+
+    it('resets exercise completion flags for a completed strength session without restoring exercises unnecessarily', () => {
+      const strengthSession = generateStrengthSessions().find((s) => s.status === 'planned')!
+      const completed = {
+        ...strengthSession,
+        status: 'completed' as const,
+        exercises: strengthSession.exercises?.map((e) => ({ ...e, completed: true })),
+        completedAt: '2026-09-01T10:00:00.000Z',
+        completionNote: 'Felt strong',
+      }
+
+      const reset = resetSessionOutcome(completed)
+      expect(reset.status).toBe('planned')
+      expect(reset.completionNote).toBeUndefined()
+      expect(reset.completedAt).toBeUndefined()
+      expect(reset.exercises?.every((e) => !e.completed)).toBe(true)
+      expect(reset.exercises?.length).toBe(strengthSession.exercises?.length)
     })
   })
 })

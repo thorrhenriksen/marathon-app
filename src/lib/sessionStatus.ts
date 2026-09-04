@@ -37,6 +37,14 @@ export function canMarkMissed(session: Session, today: string): boolean {
   )
 }
 
+/** True for any past or current session whose status represents a resolved
+ *  outcome (completed, missed, handled, downgraded-to-mobility, or skipped)
+ *  — the only cases where "Change outcome" makes sense. A 'planned' session
+ *  has nothing to change yet, and a 'moved' session is still unresolved. */
+export function canChangeOutcome(session: Session, today: string): boolean {
+  return session.date <= today && session.status !== 'planned' && session.status !== 'moved'
+}
+
 export interface DisplayStatusStyle {
   badge: string
   dot: string

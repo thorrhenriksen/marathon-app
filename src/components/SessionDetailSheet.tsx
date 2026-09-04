@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { addDays, formatDisplayDateLong, todayISO } from '../lib/dates'
-import { canMarkMissed } from '../lib/sessionStatus'
+import { canMarkMissed, canChangeOutcome } from '../lib/sessionStatus'
 import {
   computePaceZones,
   DEFAULT_GOAL_SECONDS,
@@ -15,6 +15,7 @@ import { findLastComparableRun } from '../lib/comparableRun'
 import { findLastComparableStrengthSession } from '../lib/comparableStrength'
 import { isNearLongestLongRun, pickTips } from '../lib/sessionTips'
 import { moveSessionToDate, applyNotFeeling100, applySwapToMobilityOnly } from '../lib/adjustmentEngine'
+import { revertSessionToPlanned } from '../db/runs'
 import type { Session, SessionExercise } from '../types'
 import BottomSheet from './BottomSheet'
 import Modal from './Modal'
@@ -45,6 +46,7 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
   const [confirmingComplete, setConfirmingComplete] = useState(false)
   const [completionNote, setCompletionNote] = useState('')
   const [confirmingSwapToMobility, setConfirmingSwapToMobility] = useState(false)
+  const [confirmingChangeOutcome, setConfirmingChangeOutcome] = useState(false)
 
   const zones = computePaceZones(goal?.targetTimeSeconds ?? DEFAULT_GOAL_SECONDS)
   const estimatedMinutes = estimateSessionDurationMinutes(session.plannedDistanceKm, zones)
@@ -85,6 +87,7 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
   const canAct = session.status !== 'completed'
   const canLog = session.type !== 'rest' && session.type !== 'strength' && session.status !== 'skipped'
   const canMissThisSession = canMarkMissed(session, todayISO())
+  const canRevertOutcome = canChangeOutcome(session, todayISO())
 
   async function handleMove() {
     if (!weekMeta) return
@@ -132,8 +135,8 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
     onClose()
   }
 
-  async function handleUndoMissed() {
-    await db.sessions.put({ ...session, status: 'planned' })
+  async function handleChangeOutcome() {
+    await revertSessionToPlanned(session)
     onClose()
   }
 
@@ -255,12 +258,6 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
           {session.status === 'missed' ? (
             <div className="rounded-xl border border-danger/40 bg-danger/10 p-3">
               <p className="text-sm text-danger">Marked as missed.</p>
-              <button
-                onClick={handleUndoMissed}
-                className="mt-2 w-full rounded-lg border border-border py-2 text-sm font-medium text-ink"
-              >
-                Undo
-              </button>
             </div>
           ) : session.status === 'completed' ? (
             session.type === 'strength' ? (
@@ -454,6 +451,37 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
               </div>
             )
           )}
+
+          {canRevertOutcome &&
+            (!confirmingChangeOutcome ? (
+              <button
+                onClick={() => setConfirmingChangeOutcome(true)}
+                className="w-full rounded-xl border border-border py-3 text-sm font-medium text-ink-muted"
+              >
+                Change outcome
+              </button>
+            ) : (
+              <div className="rounded-xl border border-border bg-surface-inset p-3">
+                <p className="text-sm text-ink-muted">
+                  This resets the session back to planned, unlinking any logged run (the run itself won't be
+                  deleted). Confirm?
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    onClick={() => setConfirmingChangeOutcome(false)}
+                    className="flex-1 rounded-lg border border-border py-2 text-sm text-ink-muted"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleChangeOutcome}
+                    className="flex-1 rounded-lg bg-accent py-2 text-sm font-medium text-accent-fg"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            ))}
         </div>
       </BottomSheet>
 

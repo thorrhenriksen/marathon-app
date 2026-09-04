@@ -1,6 +1,11 @@
 import type { Session, SessionType, Settings, TimeOff, WeekMeta } from '../types'
 import { addDays, daysBetween, getWeekdayIndex, startOfWeek } from './dates'
-import { buildMobilityOnlyExercises } from './strengthCatalog'
+import {
+  buildMobilityOnlyExercises,
+  buildSessionExercises,
+  estimatedMinutesForTier,
+  tierForWeek,
+} from './strengthCatalog'
 
 export interface AdjustmentPreview {
   timeOffId: string
@@ -288,4 +293,42 @@ export function applySwapToMobilityOnly(session: Session): Session {
     exercises: buildMobilityOnlyExercises(session.variant ?? 'A'),
     status: 'downgraded-to-mobility',
   }
+}
+
+/** True if a strength session's current exercises are exactly the mobility-only
+ *  set for its variant — detected by exercise-id comparison rather than status
+ *  or description, since both a "downgraded-to-mobility" status and a
+ *  "(mobility only)" description can go stale (e.g. once the status is
+ *  changed again, as when a downgraded session is later marked missed). */
+function hasMobilityOnlyExercises(session: Session): boolean {
+  if (!session.exercises) return false
+  const mobilityIds = buildMobilityOnlyExercises(session.variant ?? 'A').map((e) => e.exerciseId)
+  const currentIds = session.exercises.map((e) => e.exerciseId)
+  return mobilityIds.length === currentIds.length && mobilityIds.every((id) => currentIds.includes(id))
+}
+
+/** Reverts any resolved outcome (completed, missed, handled, downgraded-to-
+ *  mobility, or skipped) back to a fresh 'planned' session, so the normal
+ *  actions (log, mark missed, swap to mobility) are available again. Clears
+ *  any run link and strength mobility-only downgrade. Never touches the
+ *  linked run itself — callers are responsible for unlinking it on the run's
+ *  side (see db/runs.ts's revertSessionToPlanned). */
+export function resetSessionOutcome(session: Session): Session {
+  const { linkedRunId: _linkedRunId, completedAt: _completedAt, completionNote: _completionNote, ...rest } = session
+  const base: Session = { ...rest, status: 'planned' }
+
+  if (session.type !== 'strength') return base
+
+  const variant = session.variant ?? 'A'
+  if (hasMobilityOnlyExercises(session)) {
+    const tier = tierForWeek(session.week)
+    return {
+      ...base,
+      description: `Strength — Session ${variant}`,
+      exercises: buildSessionExercises(variant, tier),
+      estimatedMinutes: estimatedMinutesForTier(tier),
+    }
+  }
+
+  return { ...base, exercises: session.exercises?.map((e) => ({ ...e, completed: false })) }
 }

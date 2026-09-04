@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getDisplayStatus, canMarkMissed } from './sessionStatus'
+import { getDisplayStatus, canMarkMissed, canChangeOutcome } from './sessionStatus'
 import type { Session } from '../types'
 
 function makeSession(overrides: Partial<Session> = {}): Session {
@@ -94,5 +94,34 @@ describe('canMarkMissed', () => {
 
   it('is false for a moved session whose new date is still upcoming', () => {
     expect(canMarkMissed(makeSession({ status: 'moved', date: '2026-09-10' }), today)).toBe(false)
+  })
+})
+
+describe('canChangeOutcome', () => {
+  const today = '2026-09-04'
+
+  it.each(['completed', 'missed', 'handled', 'downgraded-to-mobility', 'skipped'] as const)(
+    'is true for a past session with resolved status %s',
+    (status) => {
+      expect(canChangeOutcome(makeSession({ status, date: '2026-09-01' }), today)).toBe(true)
+    },
+  )
+
+  it('is true for a resolved session dated today', () => {
+    expect(canChangeOutcome(makeSession({ status: 'completed', date: today }), today)).toBe(true)
+  })
+
+  it('is false for a planned session (nothing to change)', () => {
+    expect(canChangeOutcome(makeSession({ status: 'planned', date: '2026-09-01' }), today)).toBe(false)
+  })
+
+  it('is false for a moved session (still unresolved)', () => {
+    expect(canChangeOutcome(makeSession({ status: 'moved', date: '2026-09-01' }), today)).toBe(false)
+  })
+
+  it('is false for a future session, even one already downgraded-to-mobility by plan generation', () => {
+    expect(canChangeOutcome(makeSession({ status: 'downgraded-to-mobility', date: '2026-09-10' }), today)).toBe(
+      false,
+    )
   })
 })
