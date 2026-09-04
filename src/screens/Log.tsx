@@ -6,6 +6,27 @@ import { formatDuration, formatPace } from '../lib/paceZones'
 import type { Run, SessionType } from '../types'
 import Modal from '../components/Modal'
 import LogRunForm from '../components/LogRunForm'
+import WeekAgenda from '../components/WeekAgenda'
+
+type TrainViewTab = 'week' | 'log'
+
+function TrainTabs({ tab, onChange }: { tab: TrainViewTab; onChange: (tab: TrainViewTab) => void }) {
+  return (
+    <div className="flex rounded-full bg-surface-inset p-1">
+      {(['week', 'log'] as TrainViewTab[]).map((t) => (
+        <button
+          key={t}
+          onClick={() => onChange(t)}
+          className={`flex-1 rounded-full py-1.5 text-sm font-medium capitalize ${
+            tab === t ? 'bg-surface text-ink shadow-sm' : 'text-ink-faint'
+          }`}
+        >
+          {t}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 const TYPE_LABELS: Record<SessionType | 'other', string> = {
   easy: 'Easy',
@@ -87,13 +108,20 @@ function RunRow({ run, onSelect }: { run: Run; onSelect: (run: Run) => void }) {
 
 export default function Log() {
   const runs = useLiveQuery(() => db.runs.orderBy('date').reverse().toArray(), [])
+  const settings = useLiveQuery(() => db.settings.get('settings'), [])
   const [showAddForm, setShowAddForm] = useState(false)
   const [selectedRun, setSelectedRun] = useState<Run | null>(null)
+
+  const tab: TrainViewTab = settings?.trainViewTab ?? 'week'
+
+  function setTab(next: TrainViewTab) {
+    db.settings.update('settings', { trainViewTab: next })
+  }
 
   if (!runs) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-ink-faint">Loading log…</p>
+        <p className="text-sm text-ink-faint">Loading…</p>
       </div>
     )
   }
@@ -101,40 +129,50 @@ export default function Log() {
   const groups = groupByMonth(runs)
 
   return (
-    <div className="flex flex-col gap-6 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
+    <div className="flex flex-col gap-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-ink">Log</h1>
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-fg"
-        >
-          + Add run
-        </button>
+        <h1 className="text-lg font-semibold text-ink">Train</h1>
+        {tab === 'log' && (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-fg"
+          >
+            + Add run
+          </button>
+        )}
       </div>
 
-      {groups.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-ink-faint">
-          No runs logged yet. Tap "Add run" to log your first one.
-        </div>
+      <TrainTabs tab={tab} onChange={setTab} />
+
+      {tab === 'week' ? (
+        <WeekAgenda />
       ) : (
-        groups.map((group) => (
-          <section key={group.key}>
-            <div className="mb-2 flex items-baseline justify-between">
-              <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">
-                {monthLabel(group.key)}
-              </h2>
-              <p className="text-xs text-ink-faint">
-                {group.totalKm.toFixed(1)} km · {formatDuration(group.totalSeconds)} · {group.runs.length}{' '}
-                {group.runs.length === 1 ? 'run' : 'runs'}
-              </p>
+        <div className="flex flex-col gap-6">
+          {groups.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-ink-faint">
+              No runs logged yet. Tap "Add run" to log your first one.
             </div>
-            <div className="flex flex-col gap-2">
-              {group.runs.map((run) => (
-                <RunRow key={run.id} run={run} onSelect={setSelectedRun} />
-              ))}
-            </div>
-          </section>
-        ))
+          ) : (
+            groups.map((group) => (
+              <section key={group.key}>
+                <div className="mb-2 flex items-baseline justify-between">
+                  <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">
+                    {monthLabel(group.key)}
+                  </h2>
+                  <p className="text-xs text-ink-faint">
+                    {group.totalKm.toFixed(1)} km · {formatDuration(group.totalSeconds)} · {group.runs.length}{' '}
+                    {group.runs.length === 1 ? 'run' : 'runs'}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {group.runs.map((run) => (
+                    <RunRow key={run.id} run={run} onSelect={setSelectedRun} />
+                  ))}
+                </div>
+              </section>
+            ))
+          )}
+        </div>
       )}
 
       {showAddForm && (

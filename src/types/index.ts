@@ -117,6 +117,8 @@ export interface Settings {
   achievementsExpanded?: boolean
   /** True when an achievement unlocked while the section was collapsed and hasn't been seen yet. */
   achievementsHasUnseenUnlock?: boolean
+  /** Persisted last-selected segment of the Train tab. */
+  trainViewTab?: 'week' | 'log'
 }
 
 export type Phase = 1 | 2 | 3 | 4

@@ -18,3 +18,19 @@ const SESSION_TYPE_DOT_COLORS: Record<SessionType, string> = {
 export function sessionDotColor(type: SessionType): string {
   return SESSION_TYPE_DOT_COLORS[type]
 }
+
+const SESSION_TYPE_BORDER_COLORS: Record<SessionType, string> = {
+  easy: 'border-accent',
+  long: 'border-info',
+  tempo: 'border-warning',
+  'marathon-pace': 'border-highlight',
+  strides: 'border-accent',
+  race: 'border-danger',
+  rest: 'border-ink-faint',
+  strength: 'border-strength',
+}
+
+/** Left-edge card border color keyed by session type — same palette as `sessionDotColor`. */
+export function sessionBorderColor(type: SessionType): string {
+  return SESSION_TYPE_BORDER_COLORS[type]
+}

@@ -73,7 +73,7 @@ function SettingsIcon(active: boolean) {
 const TABS: TabDef[] = [
   { id: 'today', label: 'Today', icon: TodayIcon },
   { id: 'plan', label: 'Plan', icon: PlanIcon },
-  { id: 'log', label: 'Log', icon: LogIcon },
+  { id: 'log', label: 'Train', icon: LogIcon },
   { id: 'progress', label: 'Progress', icon: ProgressIcon },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ]
