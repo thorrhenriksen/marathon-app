@@ -18,6 +18,7 @@ export type SessionStatus =
   | 'moved'
   | 'handled' // set by the "Not feeling 100%" quick-adjust action
   | 'downgraded-to-mobility' // strength session reduced to the 5-min mobility block only
+  | 'missed' // explicitly marked as not done (distinct from an unresolved past session)
 
 export type StrengthVariant = 'A' | 'B'
 

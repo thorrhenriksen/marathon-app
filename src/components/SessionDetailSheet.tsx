@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { addDays, formatDisplayDateLong } from '../lib/dates'
+import { addDays, formatDisplayDateLong, todayISO } from '../lib/dates'
+import { getDisplayStatus } from '../lib/sessionStatus'
 import {
   computePaceZones,
   DEFAULT_GOAL_SECONDS,
@@ -83,6 +84,7 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
 
   const canAct = session.status !== 'completed'
   const canLog = session.type !== 'rest' && session.type !== 'strength' && session.status !== 'skipped'
+  const displayStatus = getDisplayStatus(session, todayISO())
 
   async function handleMove() {
     if (!weekMeta) return
@@ -121,6 +123,16 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
   async function handleSwapToMobilityOnly() {
     const updated = applySwapToMobilityOnly(session)
     await db.sessions.put(updated)
+    onClose()
+  }
+
+  async function handleMarkMissed() {
+    await db.sessions.put({ ...session, status: 'missed' })
+    onClose()
+  }
+
+  async function handleUndoMissed() {
+    await db.sessions.put({ ...session, status: 'planned' })
     onClose()
   }
 
@@ -239,7 +251,17 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
             </div>
           )}
 
-          {session.status === 'completed' ? (
+          {session.status === 'missed' ? (
+            <div className="rounded-xl border border-danger/40 bg-danger/10 p-3">
+              <p className="text-sm text-danger">Marked as missed.</p>
+              <button
+                onClick={handleUndoMissed}
+                className="mt-2 w-full rounded-lg border border-border py-2 text-sm font-medium text-ink"
+              >
+                Undo
+              </button>
+            </div>
+          ) : session.status === 'completed' ? (
             session.type === 'strength' ? (
               <div>
                 <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-faint">Exercises completed</h3>
@@ -286,6 +308,15 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
                     className="w-full rounded-xl bg-accent py-3 text-base font-semibold text-accent-fg"
                   >
                     Log this run
+                  </button>
+                )}
+
+                {displayStatus === 'unlogged' && (
+                  <button
+                    onClick={handleMarkMissed}
+                    className="w-full rounded-xl border border-danger/40 py-3 text-sm font-medium text-danger"
+                  >
+                    Mark as missed
                   </button>
                 )}
 

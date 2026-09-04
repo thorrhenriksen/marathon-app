@@ -3,6 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { addDays, formatDisplayDate, todayISO } from '../lib/dates'
 import { findTimeOffForDate, getWeekAdjustments } from '../lib/timeOffDisplay'
+import { getDisplayStatus, DISPLAY_STATUS_STYLE } from '../lib/sessionStatus'
+import { sessionDotColor } from '../lib/sessionColors'
 import { useSessionDetail } from '../context/SessionDetailContext'
 import type { Session, SessionType, WeekMeta, TimeOff } from '../types'
 import AdjustmentSummaryModal from '../components/AdjustmentSummaryModal'
@@ -18,13 +20,9 @@ const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   strength: 'Strength',
 }
 
-const DOT_COLORS: Record<Session['status'], string> = {
-  planned: 'bg-ink-faint',
-  completed: 'bg-accent',
-  skipped: 'bg-danger',
-  moved: 'bg-warning',
-  handled: 'bg-info',
-  'downgraded-to-mobility': 'bg-strength',
+function dotColorFor(session: Session, today: string): string {
+  const displayStatus = getDisplayStatus(session, today)
+  return displayStatus === 'planned' ? sessionDotColor(session.type) : DISPLAY_STATUS_STYLE[displayStatus].dot
 }
 
 interface WeekBadge {
@@ -72,6 +70,7 @@ interface WeekCardProps {
   isExpanded: boolean
   isAdjusted: boolean
   timeOffEntries: TimeOff[]
+  today: string
   onToggle: () => void
   onTapAdjusted: () => void
   onTapSession: (session: Session) => void
@@ -84,6 +83,7 @@ function WeekCard({
   isExpanded,
   isAdjusted,
   timeOffEntries,
+  today,
   onToggle,
   onTapAdjusted,
   onTapSession,
@@ -153,7 +153,7 @@ function WeekCard({
                   onClick={() => onTapSession(session)}
                   className={`flex items-center gap-3 rounded-lg text-left ${onTimeOff ? 'bg-warning/10 px-2 py-1' : ''}`}
                 >
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${DOT_COLORS[session.status]}`} />
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${dotColorFor(session, today)}`} />
                   <span className="w-9 shrink-0 text-[11px] uppercase text-ink-faint">
                     {formatDisplayDate(session.date).slice(0, 3)}
                   </span>
@@ -278,6 +278,7 @@ export default function Plan() {
                 isExpanded={expandedWeeks.has(week.week)}
                 isAdjusted={getWeekAdjustments(week.week, adjustments ?? []).length > 0}
                 timeOffEntries={timeOffEntries ?? []}
+                today={today}
                 onToggle={() => toggleWeek(week.week)}
                 onTapAdjusted={() => handleTapAdjusted(week.week)}
                 onTapSession={openSessionDetail}

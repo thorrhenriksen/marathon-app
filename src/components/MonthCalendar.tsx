@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { addDays, parseISODate, startOfWeek, toISODate, todayISO } from '../lib/dates'
 import { findTimeOffForDate } from '../lib/timeOffDisplay'
 import { sessionDotColor } from '../lib/sessionColors'
+import { getDisplayStatus, DISPLAY_STATUS_STYLE } from '../lib/sessionStatus'
 import { useSessionDetail } from '../context/SessionDetailContext'
 import { RACE_DATE } from '../db/seed'
 import type { Session, TimeOff } from '../types'
@@ -72,6 +73,12 @@ export default function MonthCalendar({ sessions, timeOffEntries, selectedDate, 
           const isSelected = date === selectedDate
           const isRaceDay = date === RACE_DATE
           const onTimeOff = !!findTimeOffForDate(date, timeOffEntries)
+          const displayStatus = session ? getDisplayStatus(session, today) : null
+          const dotColor = session
+            ? displayStatus === 'planned'
+              ? sessionDotColor(session.type)
+              : DISPLAY_STATUS_STYLE[displayStatus!].dot
+            : 'bg-transparent'
           return (
             <button
               key={date}
@@ -93,9 +100,7 @@ export default function MonthCalendar({ sessions, timeOffEntries, selectedDate, 
               <span className={`text-[11px] ${isToday ? 'font-bold text-accent' : 'text-ink-muted'}`}>
                 {parseISODate(date).getDate()}
               </span>
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${session ? sessionDotColor(session.type) : 'bg-transparent'}`}
-              />
+              <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
             </button>
           )
         })}

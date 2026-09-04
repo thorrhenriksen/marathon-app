@@ -2,7 +2,14 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { RACE_DATE } from '../db/seed'
-import { daysBetween, formatDisplayDate, formatDisplayDateLong, startOfWeek, todayISO } from '../lib/dates'
+import {
+  daysBetween,
+  formatDateRangeShort,
+  formatDisplayDate,
+  formatDisplayDateLong,
+  startOfWeek,
+  todayISO,
+} from '../lib/dates'
 import { computePaceZones, DEFAULT_GOAL_SECONDS } from '../lib/paceZones'
 import { getWeekAdjustments } from '../lib/timeOffDisplay'
 import type { Session, TimeOff } from '../types'
@@ -31,24 +38,33 @@ export default function Today() {
     [],
   )
 
+  const currentWeekStart = startOfWeek(today)
+
   const [loggingSession, setLoggingSession] = useState<Session | null>(null)
   const [selectedTimeOff, setSelectedTimeOff] = useState<TimeOff | null>(null)
   const [selectedDate, setSelectedDate] = useState(today)
   const [calendarView, setCalendarView] = useState<CalendarView>('week')
+  const [viewedWeekStart, setViewedWeekStart] = useState(currentWeekStart)
+  const [jumpToTodaySignal, setJumpToTodaySignal] = useState(0)
 
   const zones = computePaceZones(goal?.targetTimeSeconds ?? DEFAULT_GOAL_SECONDS)
   const daysToRace = daysBetween(today, RACE_DATE)
 
-  const selectedWeekStart = startOfWeek(selectedDate)
-  const selectedWeekMeta = (weeks ?? []).find((w) => w.startDate === selectedWeekStart)
+  const viewedWeekMeta = (weeks ?? []).find((w) => w.startDate === viewedWeekStart)
 
-  const weekIsAdjusted = selectedWeekMeta
-    ? getWeekAdjustments(selectedWeekMeta.week, adjustments ?? []).length > 0
+  function handleBackToToday() {
+    setViewedWeekStart(currentWeekStart)
+    setSelectedDate(today)
+    setJumpToTodaySignal((n) => n + 1)
+  }
+
+  const weekIsAdjusted = viewedWeekMeta
+    ? getWeekAdjustments(viewedWeekMeta.week, adjustments ?? []).length > 0
     : false
 
   function handleTapAdjusted() {
-    if (!selectedWeekMeta) return
-    const weekAdjustments = getWeekAdjustments(selectedWeekMeta.week, adjustments ?? [])
+    if (!viewedWeekMeta) return
+    const weekAdjustments = getWeekAdjustments(viewedWeekMeta.week, adjustments ?? [])
     const firstAdjustment = weekAdjustments[0]
     if (!firstAdjustment) return
     const timeOff = (timeOffEntries ?? []).find((t) => t.id === firstAdjustment.timeOffId)
@@ -100,29 +116,37 @@ export default function Today() {
               </button>
             )}
           </div>
-          <div className="flex rounded-full border border-border p-0.5 text-xs">
-            <button
-              onClick={() => setCalendarView('week')}
-              className={`rounded-full px-3 py-1 font-medium ${
-                calendarView === 'week' ? 'bg-accent text-accent-fg' : 'text-ink-muted'
-              }`}
-            >
-              Week
-            </button>
-            <button
-              onClick={() => setCalendarView('month')}
-              className={`rounded-full px-3 py-1 font-medium ${
-                calendarView === 'month' ? 'bg-accent text-accent-fg' : 'text-ink-muted'
-              }`}
-            >
-              Month
-            </button>
+          <div className="flex items-center gap-2">
+            {viewedWeekStart !== currentWeekStart && (
+              <button onClick={handleBackToToday} className="text-[11px] font-medium text-accent underline">
+                Back to today
+              </button>
+            )}
+            <div className="flex rounded-full border border-border p-0.5 text-xs">
+              <button
+                onClick={() => setCalendarView('week')}
+                className={`rounded-full px-3 py-1 font-medium ${
+                  calendarView === 'week' ? 'bg-accent text-accent-fg' : 'text-ink-muted'
+                }`}
+              >
+                Week
+              </button>
+              <button
+                onClick={() => setCalendarView('month')}
+                className={`rounded-full px-3 py-1 font-medium ${
+                  calendarView === 'month' ? 'bg-accent text-accent-fg' : 'text-ink-muted'
+                }`}
+              >
+                Month
+              </button>
+            </div>
           </div>
         </div>
 
-        {selectedWeekMeta && (
+        {viewedWeekMeta && (
           <p className="mb-2 text-xs text-ink-faint">
-            Week {selectedWeekMeta.week} · {selectedWeekMeta.phaseLabel} · target {selectedWeekMeta.targetVolumeKm} km
+            Week {viewedWeekMeta.week} · {formatDateRangeShort(viewedWeekMeta.startDate)} · target{' '}
+            {viewedWeekMeta.targetVolumeKm} km
           </p>
         )}
 
@@ -133,6 +157,8 @@ export default function Today() {
             timeOffEntries={timeOffEntries ?? []}
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
+            onVisibleWeekChange={setViewedWeekStart}
+            jumpToTodaySignal={jumpToTodaySignal}
           />
         ) : (
           <MonthCalendar

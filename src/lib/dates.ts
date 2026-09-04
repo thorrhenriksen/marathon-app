@@ -41,6 +41,13 @@ export function formatDisplayDate(dateStr: string): string {
   })
 }
 
+/** e.g. "31 Aug – 6 Sep" — day + short month, no weekday/year, for compact week-range headers. */
+export function formatDateRangeShort(startDate: string): string {
+  const endDate = addDays(startDate, 6)
+  const fmt = (d: string) => parseISODate(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  return `${fmt(startDate)} – ${fmt(endDate)}`
+}
+
 export function formatDisplayDateLong(dateStr: string): string {
   return parseISODate(dateStr).toLocaleDateString('en-GB', {
     weekday: 'long',

@@ -1,4 +1,6 @@
 import { estimateSessionDurationMinutes, formatPace, formatPaceRange } from '../lib/paceZones'
+import { todayISO } from '../lib/dates'
+import { getDisplayStatus, DISPLAY_STATUS_STYLE } from '../lib/sessionStatus'
 import { useSessionDetail } from '../context/SessionDetailContext'
 import type { PaceZones, Session, SessionType } from '../types'
 
@@ -11,24 +13,6 @@ export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   race: 'Race day',
   rest: 'Rest',
   strength: 'Strength',
-}
-
-const STATUS_BADGE_STYLES: Record<Session['status'], string> = {
-  planned: 'bg-surface-inset text-ink-muted',
-  completed: 'bg-accent/20 text-accent',
-  skipped: 'bg-danger/20 text-danger',
-  moved: 'bg-warning/20 text-warning',
-  handled: 'bg-info/20 text-info',
-  'downgraded-to-mobility': 'bg-strength/20 text-strength',
-}
-
-const STATUS_BADGE_LABELS: Record<Session['status'], string> = {
-  planned: 'Planned',
-  completed: 'Completed',
-  skipped: 'Skipped',
-  moved: 'Moved',
-  handled: 'Adjusted',
-  'downgraded-to-mobility': 'Mobility only',
 }
 
 export function paceGuidanceFor(session: Session, zones: PaceZones): string {
@@ -63,6 +47,8 @@ export default function SessionCard({ session, zones, onLog }: SessionCardProps)
     session.type !== 'strength' &&
     session.status !== 'completed' &&
     session.status !== 'skipped'
+  const displayStatus = getDisplayStatus(session, todayISO())
+  const statusStyle = DISPLAY_STATUS_STYLE[displayStatus]
 
   return (
     <div
@@ -80,10 +66,9 @@ export default function SessionCard({ session, zones, onLog }: SessionCardProps)
                 : `${session.plannedDistanceKm} km`}
           </p>
         </div>
-        <span
-          className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ${STATUS_BADGE_STYLES[session.status]}`}
-        >
-          {STATUS_BADGE_LABELS[session.status]}
+        <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ${statusStyle.badge}`}>
+          {statusStyle.icon ? `${statusStyle.icon} ` : ''}
+          {statusStyle.label}
         </span>
       </div>
 
