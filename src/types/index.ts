@@ -113,6 +113,10 @@ export interface Settings {
   shownAchievementIds?: string[]
   /** Selected card accent for the Today session card, once unlocked. */
   cardAccent?: 'bronze' | 'silver' | 'gold' | 'platinum'
+  /** Persisted expand/collapse state of the Progress tab's Achievements section. */
+  achievementsExpanded?: boolean
+  /** True when an achievement unlocked while the section was collapsed and hasn't been seen yet. */
+  achievementsHasUnseenUnlock?: boolean
 }
 
 export type Phase = 1 | 2 | 3 | 4

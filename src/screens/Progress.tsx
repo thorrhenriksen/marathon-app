@@ -159,17 +159,50 @@ function AchievementBanner({ achievement, onDismiss }: { achievement: Achievemen
 function AchievementTile({ achievement }: { achievement: Achievement }) {
   return (
     <div
-      className={`rounded-xl border p-3 ${
-        achievement.unlocked ? 'border-accent/40 bg-accent/5' : 'border-border bg-surface-inset opacity-60'
+      className={`rounded-lg border p-2 ${
+        achievement.unlocked ? 'border-accent/40 bg-accent/5' : 'border-border bg-surface-inset opacity-50'
       }`}
     >
-      <p className={`text-xs font-medium ${achievement.unlocked ? 'text-ink' : 'text-ink-faint'}`}>
+      <p className={`text-[11px] font-medium ${achievement.unlocked ? 'text-ink' : 'text-ink-faint'}`}>
         {achievement.unlocked ? achievement.title : '???'}
       </p>
-      <p className="mt-1 text-[11px] text-ink-faint">
+      <p className="mt-0.5 text-[10px] text-ink-faint">
         {achievement.unlocked ? (achievement.progress ?? achievement.condition) : achievement.condition}
       </p>
     </div>
+  )
+}
+
+function AchievementsSection({
+  achievements,
+  isExpanded,
+  hasUnseenUnlock,
+  onToggle,
+}: {
+  achievements: Achievement[]
+  isExpanded: boolean
+  hasUnseenUnlock: boolean
+  onToggle: () => void
+}) {
+  const unlockedCount = achievements.filter((a) => a.unlocked).length
+
+  return (
+    <section className="rounded-2xl border border-border bg-surface">
+      <button onClick={onToggle} className="flex w-full items-center justify-between gap-3 p-4 text-left">
+        <span className="flex items-center gap-2 text-sm font-medium text-ink">
+          Achievements — {unlockedCount} of {achievements.length} unlocked
+          {!isExpanded && hasUnseenUnlock && <span className="h-2 w-2 rounded-full bg-accent" />}
+        </span>
+        <span className={`shrink-0 text-ink-faint transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▾</span>
+      </button>
+      {isExpanded && (
+        <div className="grid grid-cols-3 gap-1.5 px-4 pb-4">
+          {achievements.map((achievement) => (
+            <AchievementTile key={achievement.id} achievement={achievement} />
+          ))}
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -231,13 +264,20 @@ export default function Progress() {
     if (unlocked.length === 0) return
     setNewlyUnlocked((prev) => [...prev, ...unlocked])
     const nextShown = [...shown, ...unlocked.map((a) => a.id)]
-    db.settings.update('settings', { shownAchievementIds: nextShown })
+    db.settings.update('settings', { shownAchievementIds: nextShown, achievementsHasUnseenUnlock: true })
     // Only re-run when the achievement set itself changes, not on every settings write.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [achievements, settings?.id])
 
   function dismissBanner(id: string) {
     setNewlyUnlocked((prev) => prev.filter((a) => a.id !== id))
+  }
+
+  const achievementsExpanded = settings?.achievementsExpanded ?? false
+
+  function toggleAchievements() {
+    const next = !achievementsExpanded
+    db.settings.update('settings', { achievementsExpanded: next, ...(next ? { achievementsHasUnseenUnlock: false } : {}) })
   }
 
   if (!weeks || !sessions || !runs) {
@@ -276,15 +316,6 @@ export default function Progress() {
           value={`${strengthAdherence.completed}/${strengthAdherence.planned} · ${strengthAdherence.streak} streak`}
         />
       </div>
-
-      <section>
-        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">Achievements</h2>
-        <div className="grid grid-cols-2 gap-2">
-          {achievements.map((achievement) => (
-            <AchievementTile key={achievement.id} achievement={achievement} />
-          ))}
-        </div>
-      </section>
 
       {!hasRuns ? (
         <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-ink-faint">
@@ -420,6 +451,13 @@ export default function Progress() {
           </section>
         </>
       )}
+
+      <AchievementsSection
+        achievements={achievements}
+        isExpanded={achievementsExpanded}
+        hasUnseenUnlock={settings?.achievementsHasUnseenUnlock ?? false}
+        onToggle={toggleAchievements}
+      />
     </div>
   )
 }
