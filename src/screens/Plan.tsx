@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { addDays, formatDisplayDate, todayISO } from '../lib/dates'
-import { findTimeOffForDate, getWeekAdjustments } from '../lib/timeOffDisplay'
-import { getDisplayStatus, DISPLAY_STATUS_STYLE } from '../lib/sessionStatus'
+import { getWeekAdjustments } from '../lib/timeOffDisplay'
+import { getDisplayStatus } from '../lib/sessionStatus'
 import { sessionDotColor } from '../lib/sessionColors'
 import { useSessionDetail } from '../context/SessionDetailContext'
 import type { Session, SessionType, WeekMeta, TimeOff } from '../types'
@@ -20,9 +20,33 @@ const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   strength: 'Strength',
 }
 
-function dotColorFor(session: Session, today: string): string {
+interface RowPresentation {
+  /** Future/planned sessions keep the small type-colored dot instead of a badge. */
+  kind: 'dot' | 'badge'
+  className: string
+  icon: string
+  note?: string
+}
+
+function rowPresentationFor(session: Session, today: string): RowPresentation {
   const displayStatus = getDisplayStatus(session, today)
-  return displayStatus === 'planned' ? sessionDotColor(session.type) : DISPLAY_STATUS_STYLE[displayStatus].dot
+  switch (displayStatus) {
+    case 'completed':
+      return { kind: 'badge', className: 'bg-accent/20 text-accent', icon: '✓' }
+    case 'missed':
+      return { kind: 'badge', className: 'bg-danger/20 text-danger', icon: '✕' }
+    case 'handled':
+      // 'skipped' sessions are excused by a time-off range — a holiday is not a
+      // failure, so keep them neutral rather than green.
+      return session.status === 'skipped'
+        ? { kind: 'badge', className: 'bg-surface-inset text-ink-faint', icon: '–', note: 'Time off' }
+        : { kind: 'badge', className: 'bg-accent/20 text-accent', icon: '✓', note: 'Reduced' }
+    case 'unlogged':
+      return { kind: 'badge', className: 'bg-warning/20 text-warning', icon: '!' }
+    case 'planned':
+    default:
+      return { kind: 'dot', className: sessionDotColor(session.type), icon: '' }
+  }
 }
 
 interface WeekBadge {
@@ -69,7 +93,6 @@ interface WeekCardProps {
   isCurrent: boolean
   isExpanded: boolean
   isAdjusted: boolean
-  timeOffEntries: TimeOff[]
   today: string
   onToggle: () => void
   onTapAdjusted: () => void
@@ -82,14 +105,16 @@ function WeekCard({
   isCurrent,
   isExpanded,
   isAdjusted,
-  timeOffEntries,
   today,
   onToggle,
   onTapAdjusted,
   onTapSession,
 }: WeekCardProps) {
   const weekEnd = addDays(week.startDate, 6)
-  const completedCount = sessions.filter((s) => s.status === 'completed').length
+  const completedCount = sessions.filter((s) => {
+    const status = getDisplayStatus(s, today)
+    return status === 'completed' || status === 'handled'
+  }).length
   const trackedCount = sessions.filter((s) => s.type !== 'rest').length
   const badges = weekBadges(week, isAdjusted)
 
@@ -146,21 +171,32 @@ function WeekCard({
             .slice()
             .sort((a, b) => (a.date < b.date ? -1 : 1))
             .map((session) => {
-              const onTimeOff = !!findTimeOffForDate(session.date, timeOffEntries)
+              const presentation = rowPresentationFor(session, today)
               return (
                 <button
                   key={session.id}
                   onClick={() => onTapSession(session)}
-                  className={`flex items-center gap-3 rounded-lg text-left ${onTimeOff ? 'bg-warning/10 px-2 py-1' : ''}`}
+                  className="flex items-center gap-3 rounded-lg text-left"
                 >
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${dotColorFor(session, today)}`} />
+                  {presentation.kind === 'badge' ? (
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${presentation.className}`}
+                    >
+                      {presentation.icon}
+                    </span>
+                  ) : (
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${presentation.className}`} />
+                  )}
                   <span className="w-9 shrink-0 text-[11px] uppercase text-ink-faint">
                     {formatDisplayDate(session.date).slice(0, 3)}
                   </span>
                   <span className="w-14 shrink-0 text-xs font-medium text-ink-muted">
                     {SESSION_TYPE_LABELS[session.type]}
                   </span>
-                  <span className="flex-1 truncate text-xs text-ink-muted">{session.description}</span>
+                  <span className="flex-1 truncate text-xs text-ink-muted">
+                    {session.description}
+                    {presentation.note && <span className="text-ink-faint"> · {presentation.note}</span>}
+                  </span>
                   {session.type === 'strength' ? (
                     <span className="shrink-0 text-xs text-ink-faint">Session {session.variant}</span>
                   ) : (
@@ -277,7 +313,6 @@ export default function Plan() {
                 isCurrent={week.week === currentWeekNumber}
                 isExpanded={expandedWeeks.has(week.week)}
                 isAdjusted={getWeekAdjustments(week.week, adjustments ?? []).length > 0}
-                timeOffEntries={timeOffEntries ?? []}
                 today={today}
                 onToggle={() => toggleWeek(week.week)}
                 onTapAdjusted={() => handleTapAdjusted(week.week)}
