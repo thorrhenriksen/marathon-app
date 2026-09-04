@@ -26,6 +26,7 @@ export default function Today() {
   const today = todayISO()
 
   const goal = useLiveQuery(() => db.goals.get('goal'), [])
+  const settings = useLiveQuery(() => db.settings.get('settings'), [])
   const todaySession = useLiveQuery(
     () => db.sessions.where('date').equals(today).first(),
     [today],
@@ -97,7 +98,12 @@ export default function Today() {
       <section>
         <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">Today</h2>
         {todaySession ? (
-          <SessionCard session={todaySession} zones={zones} onLog={setLoggingSession} />
+          <SessionCard
+            session={todaySession}
+            zones={zones}
+            onLog={setLoggingSession}
+            cardAccent={settings?.cardAccent}
+          />
         ) : (
           <div className="rounded-2xl border border-dashed border-border p-4 text-center text-sm text-ink-faint">
             No session scheduled today.

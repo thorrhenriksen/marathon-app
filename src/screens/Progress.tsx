@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   Bar,
@@ -14,6 +14,7 @@ import {
 import { db } from '../db/db'
 import { addDays, todayISO } from '../lib/dates'
 import { formatPace } from '../lib/paceZones'
+import { computeAchievements, computeStreaks, computeAdherence, type Achievement } from '../lib/achievements'
 import type { Run, Session, WeekMeta } from '../types'
 
 const GRID_COLOR = 'var(--chart-grid)'
@@ -99,48 +100,6 @@ function buildPaceTrend(runs: Run[]): PacePoint[] {
     .map((r) => ({ date: r.date, paceSecPerKm: Math.round(r.paceSecPerKm) }))
 }
 
-function computeStreaks(weeks: WeekMeta[], sessions: Session[], today: string) {
-  const sessionsByWeek = new Map<number, Session[]>()
-  for (const s of sessions) {
-    if (s.type === 'rest') continue
-    const list = sessionsByWeek.get(s.week)
-    if (list) list.push(s)
-    else sessionsByWeek.set(s.week, [s])
-  }
-
-  const elapsedWeeks = weeks
-    .filter((w) => addDays(w.startDate, 6) < today)
-    .sort((a, b) => a.week - b.week)
-
-  const completedFlags = elapsedWeeks.map((w) => {
-    const weekSessions = sessionsByWeek.get(w.week) ?? []
-    if (weekSessions.length === 0) return false
-    return weekSessions.every((s) => s.status === 'completed')
-  })
-
-  let best = 0
-  let running = 0
-  for (const flag of completedFlags) {
-    running = flag ? running + 1 : 0
-    best = Math.max(best, running)
-  }
-
-  let current = 0
-  for (let i = completedFlags.length - 1; i >= 0; i--) {
-    if (completedFlags[i]) current++
-    else break
-  }
-
-  return { current, best }
-}
-
-function computeAdherence(sessions: Session[], today: string): number {
-  const elapsed = sessions.filter((s) => s.type !== 'rest' && s.date <= today)
-  if (elapsed.length === 0) return 0
-  const completed = elapsed.filter((s) => s.status === 'completed').length
-  return Math.round((completed / elapsed.length) * 100)
-}
-
 function computeStrengthAdherence(
   sessions: Session[],
   today: string,
@@ -183,11 +142,46 @@ function Legend({ items }: { items: { color: string; label: string }[] }) {
   )
 }
 
+function AchievementBanner({ achievement, onDismiss }: { achievement: Achievement; onDismiss: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4">
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wide text-accent">Achievement unlocked</p>
+        <p className="mt-1 text-sm font-semibold text-ink">{achievement.title}</p>
+      </div>
+      <button onClick={onDismiss} className="shrink-0 text-xs font-medium text-ink-faint">
+        Dismiss
+      </button>
+    </div>
+  )
+}
+
+function AchievementTile({ achievement }: { achievement: Achievement }) {
+  return (
+    <div
+      className={`rounded-xl border p-3 ${
+        achievement.unlocked ? 'border-accent/40 bg-accent/5' : 'border-border bg-surface-inset opacity-60'
+      }`}
+    >
+      <p className={`text-xs font-medium ${achievement.unlocked ? 'text-ink' : 'text-ink-faint'}`}>
+        {achievement.unlocked ? achievement.title : '???'}
+      </p>
+      <p className="mt-1 text-[11px] text-ink-faint">
+        {achievement.unlocked ? (achievement.progress ?? achievement.condition) : achievement.condition}
+      </p>
+    </div>
+  )
+}
+
 export default function Progress() {
   const today = todayISO()
   const weeks = useLiveQuery(() => db.weeks.orderBy('week').toArray(), [])
   const sessions = useLiveQuery(() => db.sessions.toArray(), [])
   const runs = useLiveQuery(() => db.runs.orderBy('date').toArray(), [])
+  const timeOffEntries = useLiveQuery(() => db.timeOff.toArray(), [])
+  const settings = useLiveQuery(() => db.settings.get('settings'), [])
+
+  const [newlyUnlocked, setNewlyUnlocked] = useState<Achievement[]>([])
 
   const weeklyVolume = useMemo(
     () => (weeks && runs ? buildWeeklyVolume(weeks, runs) : []),
@@ -199,8 +193,11 @@ export default function Progress() {
   )
   const paceTrend = useMemo(() => (runs ? buildPaceTrend(runs) : []), [runs])
   const streaks = useMemo(
-    () => (weeks && sessions ? computeStreaks(weeks, sessions, today) : { current: 0, best: 0 }),
-    [weeks, sessions, today],
+    () =>
+      weeks && sessions && timeOffEntries
+        ? computeStreaks(sessions, weeks, timeOffEntries, today)
+        : { current: 0, longest: 0 },
+    [weeks, sessions, timeOffEntries, today],
   )
   const adherence = useMemo(
     () => (sessions ? computeAdherence(sessions, today) : 0),
@@ -219,6 +216,30 @@ export default function Progress() {
     [sessions],
   )
 
+  const achievements = useMemo(
+    () =>
+      weeks && sessions && runs && timeOffEntries
+        ? computeAchievements({ sessions, runs, weeks, timeOffEntries, today })
+        : [],
+    [weeks, sessions, runs, timeOffEntries, today],
+  )
+
+  useEffect(() => {
+    if (!settings || achievements.length === 0) return
+    const shown = new Set(settings.shownAchievementIds ?? [])
+    const unlocked = achievements.filter((a) => a.unlocked && !shown.has(a.id))
+    if (unlocked.length === 0) return
+    setNewlyUnlocked((prev) => [...prev, ...unlocked])
+    const nextShown = [...shown, ...unlocked.map((a) => a.id)]
+    db.settings.update('settings', { shownAchievementIds: nextShown })
+    // Only re-run when the achievement set itself changes, not on every settings write.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [achievements, settings?.id])
+
+  function dismissBanner(id: string) {
+    setNewlyUnlocked((prev) => prev.filter((a) => a.id !== id))
+  }
+
   if (!weeks || !sessions || !runs) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -233,6 +254,14 @@ export default function Progress() {
     <div className="flex flex-col gap-6 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
       <h1 className="text-lg font-semibold text-ink">Progress</h1>
 
+      {newlyUnlocked.map((achievement) => (
+        <AchievementBanner
+          key={achievement.id}
+          achievement={achievement}
+          onDismiss={() => dismissBanner(achievement.id)}
+        />
+      ))}
+
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Total distance" value={`${totalKm.toFixed(1)} km`} />
         <StatCard label="Sessions completed" value={`${totalSessionsCompleted}`} />
@@ -241,12 +270,21 @@ export default function Progress() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Best streak" value={`${streaks.best} ${streaks.best === 1 ? 'week' : 'weeks'}`} />
+        <StatCard label="Best streak" value={`${streaks.longest} ${streaks.longest === 1 ? 'week' : 'weeks'}`} />
         <StatCard
           label="Strength adherence"
           value={`${strengthAdherence.completed}/${strengthAdherence.planned} · ${strengthAdherence.streak} streak`}
         />
       </div>
+
+      <section>
+        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">Achievements</h2>
+        <div className="grid grid-cols-2 gap-2">
+          {achievements.map((achievement) => (
+            <AchievementTile key={achievement.id} achievement={achievement} />
+          ))}
+        </div>
+      </section>
 
       {!hasRuns ? (
         <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-ink-faint">

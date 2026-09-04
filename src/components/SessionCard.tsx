@@ -1,8 +1,16 @@
 import { estimateSessionDurationMinutes, formatPace, formatPaceRange } from '../lib/paceZones'
 import { todayISO } from '../lib/dates'
 import { getDisplayStatus, DISPLAY_STATUS_STYLE } from '../lib/sessionStatus'
+import type { CardAccentUnlock } from '../lib/achievements'
 import { useSessionDetail } from '../context/SessionDetailContext'
 import type { PaceZones, Session, SessionType } from '../types'
+
+const CARD_ACCENT_STYLE: Record<CardAccentUnlock, string> = {
+  bronze: 'ring-2 ring-[#b45309]/60',
+  silver: 'ring-2 ring-[#94a3b8]/60',
+  gold: 'ring-2 ring-[#eab308]/60',
+  platinum: 'ring-2 ring-[#a78bfa]/60',
+}
 
 export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   easy: 'Easy run',
@@ -36,9 +44,10 @@ interface SessionCardProps {
   session: Session
   zones: PaceZones
   onLog?: (session: Session) => void
+  cardAccent?: CardAccentUnlock
 }
 
-export default function SessionCard({ session, zones, onLog }: SessionCardProps) {
+export default function SessionCard({ session, zones, onLog, cardAccent }: SessionCardProps) {
   const { openSessionDetail } = useSessionDetail()
   const estimatedMinutes = estimateSessionDurationMinutes(session.plannedDistanceKm, zones)
   const showFuelingReminder = session.type === 'long' && estimatedMinutes > 90
@@ -53,7 +62,7 @@ export default function SessionCard({ session, zones, onLog }: SessionCardProps)
   return (
     <div
       onClick={() => openSessionDetail(session)}
-      className="rounded-2xl border border-border bg-surface p-4"
+      className={`rounded-2xl border border-border bg-surface p-4 ${cardAccent ? CARD_ACCENT_STYLE[cardAccent] : ''}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { formatDisplayDate, todayISO } from '../lib/dates'
@@ -11,6 +11,16 @@ import Modal from '../components/Modal'
 import AdjustmentSummaryModal from '../components/AdjustmentSummaryModal'
 import DurationInput from '../components/DurationInput'
 import { useTheme } from '../context/ThemeContext'
+import {
+  computeStreaks,
+  computeTotalDistanceKm,
+  isThemeUnlocked,
+  isCardAccentUnlocked,
+  THEME_UNLOCK_STREAK_WEEKS,
+  CARD_ACCENT_UNLOCK_KM,
+  type ThemeUnlock,
+  type CardAccentUnlock,
+} from '../lib/achievements'
 
 const DAY_OPTIONS: { value: number; label: string }[] = [
   { value: 1, label: 'Mon' },
@@ -51,8 +61,32 @@ const THEME_OPTIONS: { value: 'light' | 'dark' | 'system'; label: string }[] = [
   { value: 'system', label: 'System' },
 ]
 
+const UNLOCKABLE_THEME_OPTIONS: { value: ThemeUnlock; label: string }[] = [
+  { value: 'dawn', label: 'Dawn' },
+  { value: 'midnight', label: 'Midnight' },
+]
+
+const CARD_ACCENT_OPTIONS: { value: CardAccentUnlock; label: string; swatchClass: string }[] = [
+  { value: 'bronze', label: 'Bronze', swatchClass: 'bg-[#b45309]' },
+  { value: 'silver', label: 'Silver', swatchClass: 'bg-[#94a3b8]' },
+  { value: 'gold', label: 'Gold', swatchClass: 'bg-[#eab308]' },
+  { value: 'platinum', label: 'Platinum', swatchClass: 'bg-[#a78bfa]' },
+]
+
 function ThemeSection() {
   const { theme, setTheme } = useTheme()
+  const weeks = useLiveQuery(() => db.weeks.orderBy('week').toArray(), [])
+  const sessions = useLiveQuery(() => db.sessions.toArray(), [])
+  const timeOffEntries = useLiveQuery(() => db.timeOff.toArray(), [])
+  const today = todayISO()
+
+  const longestStreak = useLiveQuery(
+    async () =>
+      weeks && sessions && timeOffEntries
+        ? computeStreaks(sessions, weeks, timeOffEntries, today).longest
+        : 0,
+    [weeks, sessions, timeOffEntries, today],
+  ) ?? 0
 
   return (
     <SectionCard title="Appearance">
@@ -68,6 +102,76 @@ function ThemeSection() {
               }`}
             >
               {option.label}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+        {UNLOCKABLE_THEME_OPTIONS.map((option) => {
+          const unlocked = isThemeUnlocked(option.value, longestStreak)
+          const active = theme === option.value
+          return (
+            <div key={option.value} className="flex items-center justify-between gap-2">
+              <button
+                onClick={() => unlocked && setTheme(option.value)}
+                disabled={!unlocked}
+                className={`flex-1 rounded-full px-3 py-2 text-left text-xs font-medium ${
+                  active
+                    ? 'bg-accent text-accent-fg'
+                    : unlocked
+                      ? 'border border-border text-ink-muted'
+                      : 'border border-border text-ink-faint opacity-50'
+                }`}
+              >
+                {option.label}
+              </button>
+              {!unlocked && (
+                <span className="text-[11px] text-ink-faint">
+                  Unlock at a {THEME_UNLOCK_STREAK_WEEKS[option.value]}-week streak
+                </span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </SectionCard>
+  )
+}
+
+function CardAccentSection() {
+  const settings = useLiveQuery(() => db.settings.get('settings'), [])
+  const runs = useLiveQuery(() => db.runs.toArray(), [])
+  const totalDistanceKm = useMemo(() => (runs ? computeTotalDistanceKm(runs) : 0), [runs])
+
+  async function selectAccent(accent: CardAccentUnlock) {
+    await db.settings.update('settings', { cardAccent: accent })
+  }
+
+  return (
+    <SectionCard title="Card accent">
+      <div className="grid grid-cols-2 gap-2">
+        {CARD_ACCENT_OPTIONS.map((option) => {
+          const unlocked = isCardAccentUnlocked(option.value, totalDistanceKm)
+          const active = settings?.cardAccent === option.value
+          return (
+            <button
+              key={option.value}
+              onClick={() => unlocked && selectAccent(option.value)}
+              disabled={!unlocked}
+              className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-medium ${
+                active ? 'border-accent' : 'border-border'
+              } ${unlocked ? 'text-ink-muted' : 'text-ink-faint opacity-50'}`}
+            >
+              <span className={`h-3 w-3 shrink-0 rounded-full ${option.swatchClass}`} />
+              <span className="flex flex-col">
+                {option.label}
+                {!unlocked && (
+                  <span className="text-[10px] text-ink-faint">
+                    {CARD_ACCENT_UNLOCK_KM[option.value]} km
+                  </span>
+                )}
+              </span>
             </button>
           )
         })}
@@ -459,6 +563,7 @@ export default function Settings() {
     <div className="flex flex-col gap-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
       <h1 className="text-lg font-semibold text-ink">Settings</h1>
       <ThemeSection />
+      <CardAccentSection />
       <GoalSection />
       <TimeOffSection />
       <PreferredDaysSection />

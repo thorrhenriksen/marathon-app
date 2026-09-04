@@ -60,6 +60,63 @@
   --chart-tooltip-text: #e5e5e5;
 }
 
+.dawn {
+  --color-bg: #fff7ed;
+  --color-surface: #ffffff;
+  --color-surface-inset: #ffedd5;
+  --color-border: #fed7aa;
+  --color-ink: #431407;
+  --color-ink-muted: #9a3412;
+  --color-ink-faint: #c2410c;
+  --color-accent: #ea580c;
+  --color-accent-fg: #fff7ed;
+  --color-danger: #b91c1c;
+  --color-warning: #a16207;
+  --color-info: #0369a1;
+  --color-highlight: #7e22ce;
+  --color-strength: #b45309;
+
+  --chart-grid: #fed7aa;
+  --chart-axis: #c2410c;
+  --chart-planned: #fdba74;
+  --chart-actual: #ea580c;
+  --chart-long-run: #0369a1;
+  --chart-pace: #a16207;
+  --chart-tooltip-bg: #fff7ed;
+  --chart-tooltip-border: #fed7aa;
+  --chart-tooltip-text: #431407;
+}
+
+/* Midnight is dark-based — the .dark class is applied alongside it so any
+   existing .dark-scoped rules keep working. Declared after .dark so its
+   values win for the shared custom properties. */
+.midnight {
+  --color-bg: #05050f;
+  --color-surface: #0f0f23;
+  --color-surface-inset: #05050f;
+  --color-border: #1e1b4b;
+  --color-ink: #e0e7ff;
+  --color-ink-muted: #a5b4fc;
+  --color-ink-faint: #818cf8;
+  --color-accent: #818cf8;
+  --color-accent-fg: #05050f;
+  --color-danger: #f87171;
+  --color-warning: #fbbf24;
+  --color-info: #38bdf8;
+  --color-highlight: #c084fc;
+  --color-strength: #2dd4bf;
+
+  --chart-grid: #1e1b4b;
+  --chart-axis: #818cf8;
+  --chart-planned: #4338ca;
+  --chart-actual: #818cf8;
+  --chart-long-run: #38bdf8;
+  --chart-pace: #fbbf24;
+  --chart-tooltip-bg: #0f0f23;
+  --chart-tooltip-border: #1e1b4b;
+  --chart-tooltip-text: #e0e7ff;
+}
+
 @theme inline {
   --color-bg: var(--color-bg);
   --color-surface: var(--color-surface);

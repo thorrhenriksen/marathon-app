@@ -4,7 +4,7 @@ import { db } from '../db/db'
 import type { Settings } from '../types'
 
 type ThemeMode = Settings['theme']
-type ResolvedTheme = 'light' | 'dark'
+type ResolvedTheme = 'light' | 'dark' | 'dawn' | 'midnight'
 
 interface ThemeContextValue {
   theme: ThemeMode
@@ -16,6 +16,13 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 const STORAGE_KEY = 'marathon-theme'
 
+const THEME_COLOR: Record<ResolvedTheme, string> = {
+  light: '#fafafa',
+  dark: '#0a0a0a',
+  dawn: '#fff7ed',
+  midnight: '#05050f',
+}
+
 function getSystemPrefersDark(): boolean {
   return window.matchMedia('(prefers-color-scheme: dark)').matches
 }
@@ -25,10 +32,13 @@ function resolveTheme(theme: ThemeMode, systemPrefersDark: boolean): ResolvedThe
 }
 
 function applyResolvedTheme(resolved: ResolvedTheme) {
-  document.documentElement.classList.toggle('dark', resolved === 'dark')
-  document
-    .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', resolved === 'dark' ? '#0a0a0a' : '#fafafa')
+  const classList = document.documentElement.classList
+  classList.remove('dark', 'dawn', 'midnight')
+  if (resolved === 'dark') classList.add('dark')
+  if (resolved === 'dawn') classList.add('dawn')
+  if (resolved === 'midnight') classList.add('dark', 'midnight')
+  document.documentElement.dataset.theme = resolved
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLOR[resolved])
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

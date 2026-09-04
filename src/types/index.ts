@@ -104,7 +104,11 @@ export interface Settings {
   preferredDays: number[]
   units: 'km'
   hasRequestedPersistence: boolean
-  theme: 'light' | 'dark' | 'system'
+  theme: 'light' | 'dark' | 'system' | 'dawn' | 'midnight'
+  /** Ids of achievements whose unlock celebration has already been shown. */
+  shownAchievementIds?: string[]
+  /** Selected card accent for the Today session card, once unlocked. */
+  cardAccent?: 'bronze' | 'silver' | 'gold' | 'platinum'
 }
 
 export type Phase = 1 | 2 | 3 | 4
