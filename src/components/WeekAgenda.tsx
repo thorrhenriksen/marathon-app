@@ -7,6 +7,7 @@ import { getDisplayStatus, DISPLAY_STATUS_STYLE } from '../lib/sessionStatus'
 import { sessionBorderColor } from '../lib/sessionColors'
 import { PHASE_LABELS } from '../db/weekPlan'
 import { findCurrentWeekNumber, clampWeek, swipeDirection, computeWeekTotals, sessionEstimatedMinutes } from '../lib/weekAgenda'
+import StreakChip from './StreakChip'
 import { useSessionDetail } from '../context/SessionDetailContext'
 import type { PaceZones, Run, Session, SessionType, WeekMeta } from '../types'
 
@@ -150,6 +151,9 @@ function WeekHeader({ week, totalKm, totalMinutes, canPrev, canNext, isCurrent, 
             Today
           </button>
         )}
+      </div>
+      <div className="flex justify-center pb-1">
+        <StreakChip />
       </div>
     </div>
   )

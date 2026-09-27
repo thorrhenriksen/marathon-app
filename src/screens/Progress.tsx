@@ -15,6 +15,7 @@ import { db } from '../db/db'
 import { addDays, todayISO } from '../lib/dates'
 import { formatPace, DEFAULT_GOAL_SECONDS } from '../lib/paceZones'
 import { computeAchievements, computeStreaks, computeAdherence, type Achievement } from '../lib/achievements'
+import StreakChip from '../components/StreakChip'
 import StatisticsSection from '../components/StatisticsSection'
 import type { Run, Session, WeekMeta } from '../types'
 
@@ -311,6 +312,7 @@ export default function Progress() {
 
       {tab === 'statistics' ? (
         <>
+          <StreakChip className="self-start" />
           <div className="grid grid-cols-2 gap-3">
             <StatCard label="Total distance" value={`${totalKm.toFixed(1)} km`} />
             <StatCard label="Sessions completed" value={`${totalSessionsCompleted}`} />

@@ -20,6 +20,7 @@ import SessionCard from '../components/SessionCard'
 import WeekStrip from '../components/WeekStrip'
 import MonthCalendar from '../components/MonthCalendar'
 import RecoveryCard from '../components/RecoveryCard'
+import StreakChip from '../components/StreakChip'
 
 type CalendarView = 'week' | 'month'
 
@@ -93,6 +94,7 @@ export default function Today() {
           {daysToRace > 0 ? `${daysToRace} days to go` : daysToRace === 0 ? 'Race day!' : 'Completed'}
         </p>
         <p className="mt-1 text-sm text-ink-muted">{formatDisplayDateLong(RACE_DATE)}</p>
+        <StreakChip className="mt-3" />
       </div>
 
       {/* Today's session */}
