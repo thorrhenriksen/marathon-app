@@ -427,6 +427,59 @@ function PreferredDaysSection() {
   )
 }
 
+const DEFAULT_REST_TIMER_SECONDS = 45
+
+function GuidedSessionPreferencesSection() {
+  const settings = useLiveQuery(() => db.settings.get('settings'), [])
+  if (!settings) return null
+
+  const restTimerSeconds = settings.restTimerSeconds ?? DEFAULT_REST_TIMER_SECONDS
+  const audioCueEnabled = settings.audioCueEnabled ?? true
+  const wakeLockEnabled = settings.wakeLockEnabled ?? true
+
+  return (
+    <SectionCard title="Guided strength session">
+      <div className="flex flex-col gap-3">
+        <div>
+          <label className="mb-1 block text-xs text-ink-faint">Rest timer (seconds)</label>
+          <input
+            type="number"
+            min={0}
+            step={5}
+            value={restTimerSeconds}
+            onChange={(e) => db.settings.update('settings', { restTimerSeconds: Number(e.target.value) || 0 })}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-ink-muted">Audio cue at end of rest</span>
+          <button
+            onClick={() => db.settings.update('settings', { audioCueEnabled: !audioCueEnabled })}
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              audioCueEnabled ? 'bg-accent text-accent-fg' : 'border border-border text-ink-muted'
+            }`}
+          >
+            {audioCueEnabled ? 'On' : 'Off'}
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-ink-muted">Keep screen awake</span>
+          <button
+            onClick={() => db.settings.update('settings', { wakeLockEnabled: !wakeLockEnabled })}
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              wakeLockEnabled ? 'bg-accent text-accent-fg' : 'border border-border text-ink-muted'
+            }`}
+          >
+            {wakeLockEnabled ? 'On' : 'Off'}
+          </button>
+        </div>
+      </div>
+    </SectionCard>
+  )
+}
+
 function BackupSection() {
   const [message, setMessage] = useState<string | null>(null)
   const [storagePersisted, setStoragePersisted] = useState(true)
@@ -578,6 +631,7 @@ export default function Settings() {
       <GoalSection />
       <TimeOffSection />
       <PreferredDaysSection />
+      <GuidedSessionPreferencesSection />
       <BackupSection />
       <ResetPlanSection />
     </div>

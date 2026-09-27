@@ -30,6 +30,11 @@ export interface StrengthExerciseCatalogEntry {
   targetArea: string
   equipment: StrengthEquipment
   formCue: string
+  /** 2-3 short form cues shown in the exercise detail sheet. */
+  cues: string[]
+  commonMistake: string
+  easierVariation?: string
+  harderVariation?: string
 }
 
 /** Per-session snapshot — denormalized from the catalog so historical
@@ -65,6 +70,8 @@ export interface Session {
   exercises?: SessionExercise[]
   estimatedMinutes?: number
   completionNote?: string
+  /** Resume point for guided mode — persisted so an app kill mid-workout can resume. */
+  guidedProgress?: { currentExerciseIndex: number; completedExerciseIds: string[] }
 }
 
 export type TimeOffLabel = 'holiday' | 'illness' | 'other'
@@ -121,6 +128,12 @@ export interface Settings {
   trainViewTab?: 'week' | 'log'
   /** Persisted last-selected segment of the Progress tab. */
   progressTab?: 'statistics' | 'achievements'
+  /** Guided strength session rest-timer duration, in seconds. Defaults to 45. */
+  restTimerSeconds?: number
+  /** Whether guided mode plays an audio cue at the end of the rest timer. Defaults to true. */
+  audioCueEnabled?: boolean
+  /** Whether guided mode attempts to keep the screen awake. Defaults to true. */
+  wakeLockEnabled?: boolean
 }
 
 export type Phase = 1 | 2 | 3 | 4

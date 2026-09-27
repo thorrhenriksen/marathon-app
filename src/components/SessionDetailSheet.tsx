@@ -16,10 +16,14 @@ import { findLastComparableStrengthSession } from '../lib/comparableStrength'
 import { isNearLongestLongRun, pickTips } from '../lib/sessionTips'
 import { moveSessionToDate, applyNotFeeling100, applySwapToMobilityOnly } from '../lib/adjustmentEngine'
 import { revertSessionToPlanned } from '../db/runs'
+import { completeStrengthSession } from '../lib/completeStrengthSession'
+import { primeAudioCue } from '../lib/audioCue'
 import type { Session, SessionExercise } from '../types'
 import BottomSheet from './BottomSheet'
 import Modal from './Modal'
 import LogRunForm from './LogRunForm'
+import ExerciseDetailSheet from './ExerciseDetailSheet'
+import GuidedStrengthSession from './GuidedStrengthSession'
 import { SESSION_TYPE_LABELS, paceGuidanceFor } from './SessionCard'
 
 interface SessionDetailSheetProps {
@@ -47,6 +51,8 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
   const [completionNote, setCompletionNote] = useState('')
   const [confirmingSwapToMobility, setConfirmingSwapToMobility] = useState(false)
   const [confirmingChangeOutcome, setConfirmingChangeOutcome] = useState(false)
+  const [detailExercise, setDetailExercise] = useState<SessionExercise | null>(null)
+  const [guiding, setGuiding] = useState(false)
 
   const zones = computePaceZones(goal?.targetTimeSeconds ?? DEFAULT_GOAL_SECONDS)
   const estimatedMinutes = estimateSessionDurationMinutes(session.plannedDistanceKm, zones)
@@ -113,15 +119,13 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
   }
 
   async function handleCompleteSession() {
-    const completedExercises = exercises.map((e) => ({ ...e, completed: true }))
-    await db.sessions.put({
-      ...session,
-      exercises: completedExercises,
-      status: 'completed',
-      completionNote: completionNote.trim() || undefined,
-      completedAt: new Date().toISOString(),
-    })
+    await completeStrengthSession({ ...session, exercises }, completionNote)
     onClose()
+  }
+
+  function handleStartGuidedSession() {
+    primeAudioCue()
+    setGuiding(true)
   }
 
   async function handleSwapToMobilityOnly() {
@@ -197,16 +201,27 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
                       onChange={() => handleToggleExercise(exercise.exerciseId)}
                       className="mt-1 h-4 w-4 accent-strength"
                     />
-                    <div>
+                    <button
+                      onClick={() => setDetailExercise(exercise)}
+                      className="flex-1 text-left"
+                    >
                       <p className="text-sm font-medium text-ink">{exercise.name}</p>
                       <p className="text-xs text-ink-faint">
                         {exercise.sets} x {exercise.reps ?? `${exercise.holdSeconds}s`}
                       </p>
                       <p className="mt-1 text-xs text-ink-muted">{exercise.formCue}</p>
-                    </div>
+                    </button>
                   </li>
                 ))}
               </ul>
+              {canAct && (
+                <button
+                  onClick={handleStartGuidedSession}
+                  className="mt-3 w-full rounded-xl bg-strength py-3 text-sm font-semibold text-accent-fg"
+                >
+                  {session.guidedProgress ? 'Resume session' : 'Start session'}
+                </button>
+              )}
             </div>
           )}
 
@@ -496,6 +511,20 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
             onCancel={() => setLogging(false)}
           />
         </Modal>
+      )}
+
+      {detailExercise && (
+        <ExerciseDetailSheet exercise={detailExercise} onClose={() => setDetailExercise(null)} />
+      )}
+
+      {guiding && (
+        <GuidedStrengthSession
+          session={{ ...session, exercises }}
+          onClose={() => {
+            setGuiding(false)
+            onClose()
+          }}
+        />
       )}
     </>
   )
