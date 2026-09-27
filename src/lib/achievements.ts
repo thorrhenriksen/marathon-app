@@ -1,8 +1,8 @@
 // Derived, never-stored achievements. Every value here is recomputed from
-// runs/sessions/weeks/time-off on every load — the only persisted state
-// related to achievements is which unlock celebrations have already been
-// shown (Settings.shownAchievementIds) and which unlocked theme/card-accent
-// is currently selected (Settings.theme / Settings.cardAccent).
+// runs/sessions/weeks/time-off on every load. The only persisted state
+// layered on top is the coin economy's event log (which achievements have
+// been collected, and shop purchases — see lib/coins.ts) and the selected
+// cosmetics (Settings.theme / cardAccent / celebrationStyle / iconPack).
 //
 // Streak rule: a week counts if every non-rest session in it is "handled"
 // (completed, or adjusted away via downgrade/skip/move/not-feeling-100%).
@@ -294,7 +294,7 @@ export function computeAchievements(input: ComputeAchievementsInput): Achievemen
       id: `streak-${weeksNeeded}`,
       category: 'streak',
       title: `${weeksNeeded}-week streak`,
-      condition: `Reach a ${weeksNeeded}-week streak to unlock the ${theme === 'dawn' ? 'Dawn' : 'Midnight'} theme`,
+      condition: `Reach a ${weeksNeeded}-week streak`,
       unlocked: isThemeUnlocked(theme, longest),
       progress: `${Math.min(longest, weeksNeeded)}/${weeksNeeded} weeks`,
     })
@@ -306,7 +306,7 @@ export function computeAchievements(input: ComputeAchievementsInput): Achievemen
       id: `distance-${kmNeeded}`,
       category: 'distance',
       title: `${kmNeeded} km logged`,
-      condition: `Log ${kmNeeded} km to unlock the ${accent} card accent`,
+      condition: `Log ${kmNeeded} km in total`,
       unlocked: isCardAccentUnlocked(accent, totalKm),
       progress: `${Math.round(Math.min(totalKm, kmNeeded))}/${kmNeeded} km`,
     })

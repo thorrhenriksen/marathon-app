@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   Bar,
@@ -14,8 +14,9 @@ import {
 import { db } from '../db/db'
 import { addDays, todayISO } from '../lib/dates'
 import { formatPace, DEFAULT_GOAL_SECONDS } from '../lib/paceZones'
-import { computeAchievements, computeStreaks, computeAdherence, type Achievement } from '../lib/achievements'
+import { computeAchievements, computeStreaks, computeAdherence } from '../lib/achievements'
 import StreakChip from '../components/StreakChip'
+import AchievementsTab from '../components/AchievementsTab'
 import StatisticsSection from '../components/StatisticsSection'
 import type { Run, Session, WeekMeta } from '../types'
 
@@ -146,54 +147,6 @@ function Legend({ items }: { items: { color: string; label: string }[] }) {
   )
 }
 
-function AchievementBanner({ achievement, onDismiss }: { achievement: Achievement; onDismiss: () => void }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-accent">Achievement unlocked</p>
-        <p className="mt-1 text-sm font-semibold text-ink">{achievement.title}</p>
-      </div>
-      <button onClick={onDismiss} className="shrink-0 text-xs font-medium text-ink-faint">
-        Dismiss
-      </button>
-    </div>
-  )
-}
-
-function AchievementTile({ achievement }: { achievement: Achievement }) {
-  return (
-    <div
-      className={`rounded-lg border p-2 ${
-        achievement.unlocked ? 'border-accent/40 bg-accent/5' : 'border-border bg-surface-inset opacity-50'
-      }`}
-    >
-      <p className={`text-[11px] font-medium ${achievement.unlocked ? 'text-ink' : 'text-ink-faint'}`}>
-        {achievement.unlocked ? achievement.title : '???'}
-      </p>
-      <p className="mt-0.5 text-[10px] text-ink-faint">
-        {achievement.unlocked ? (achievement.progress ?? achievement.condition) : achievement.condition}
-      </p>
-    </div>
-  )
-}
-
-function AchievementsSection({ achievements }: { achievements: Achievement[] }) {
-  const unlockedCount = achievements.filter((a) => a.unlocked).length
-
-  return (
-    <section className="rounded-2xl border border-border bg-surface p-4">
-      <h2 className="mb-2 text-sm font-medium text-ink">
-        Achievements — {unlockedCount} of {achievements.length} unlocked
-      </h2>
-      <div className="grid grid-cols-3 gap-1.5">
-        {achievements.map((achievement) => (
-          <AchievementTile key={achievement.id} achievement={achievement} />
-        ))}
-      </div>
-    </section>
-  )
-}
-
 function ProgressTabs({ tab, onChange }: { tab: ProgressTab; onChange: (tab: ProgressTab) => void }) {
   return (
     <div className="flex rounded-full bg-surface-inset p-1">
@@ -221,7 +174,6 @@ export default function Progress() {
   const settings = useLiveQuery(() => db.settings.get('settings'), [])
   const goal = useLiveQuery(() => db.goals.get('goal'), [])
 
-  const [newlyUnlocked, setNewlyUnlocked] = useState<Achievement[]>([])
 
   const weeklyVolume = useMemo(
     () => (weeks && runs ? buildWeeklyVolume(weeks, runs) : []),
@@ -264,26 +216,10 @@ export default function Progress() {
     [weeks, sessions, runs, timeOffEntries, today],
   )
 
-  useEffect(() => {
-    if (!settings || achievements.length === 0) return
-    const shown = new Set(settings.shownAchievementIds ?? [])
-    const unlocked = achievements.filter((a) => a.unlocked && !shown.has(a.id))
-    if (unlocked.length === 0) return
-    setNewlyUnlocked((prev) => [...prev, ...unlocked])
-    const nextShown = [...shown, ...unlocked.map((a) => a.id)]
-    db.settings.update('settings', { shownAchievementIds: nextShown, achievementsHasUnseenUnlock: true })
-    // Only re-run when the achievement set itself changes, not on every settings write.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [achievements, settings?.id])
-
-  function dismissBanner(id: string) {
-    setNewlyUnlocked((prev) => prev.filter((a) => a.id !== id))
-  }
-
   const tab: ProgressTab = settings?.progressTab ?? 'statistics'
 
   function setTab(next: ProgressTab) {
-    db.settings.update('settings', { progressTab: next, ...(next === 'achievements' ? { achievementsHasUnseenUnlock: false } : {}) })
+    db.settings.update('settings', { progressTab: next })
   }
 
   if (!weeks || !sessions || !runs) {
@@ -299,14 +235,6 @@ export default function Progress() {
   return (
     <div className="flex flex-col gap-6 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
       <h1 className="text-lg font-semibold text-ink">Progress</h1>
-
-      {newlyUnlocked.map((achievement) => (
-        <AchievementBanner
-          key={achievement.id}
-          achievement={achievement}
-          onDismiss={() => dismissBanner(achievement.id)}
-        />
-      ))}
 
       <ProgressTabs tab={tab} onChange={setTab} />
 
@@ -472,7 +400,7 @@ export default function Progress() {
           />
         </>
       ) : (
-        <AchievementsSection achievements={achievements} />
+        <AchievementsTab achievements={achievements} />
       )}
     </div>
   )

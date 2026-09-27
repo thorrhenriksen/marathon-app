@@ -134,6 +134,40 @@ export interface Settings {
   audioCueEnabled?: boolean
   /** Whether guided mode attempts to keep the screen awake. Defaults to true. */
   wakeLockEnabled?: boolean
+  /** Coin-economy event log: one entry per collected achievement. The coin
+   *  balance is derived from these plus shopPurchases — never stored. */
+  achievementCollections?: AchievementCollection[]
+  /** Coin-economy event log: one entry per shop purchase (price 0 for
+   *  grandfathered items that were already unlocked before the shop existed). */
+  shopPurchases?: ShopPurchase[]
+  /** Set once the coin economy has grandfathered prior unlocks and credited
+   *  previously-earned achievements. Guards the one-time initialization. */
+  coinEconomyInitializedAt?: string
+  /** Selected celebration animation (a shop cosmetic). Defaults to 'classic'. */
+  celebrationStyle?: CelebrationStyle
+  /** Selected calendar session-marker style (a shop cosmetic). Defaults to 'dots'. */
+  iconPack?: IconPack
+}
+
+export type CelebrationStyle = 'classic' | 'fireworks' | 'pulse'
+export type IconPack = 'dots' | 'glyphs' | 'squares'
+
+export interface AchievementCollection {
+  achievementId: string
+  collectedAt: string
+  /** Coin value credited at collection time, so later price tweaks never
+   *  rewrite a past balance. */
+  coins: number
+  /** True for achievements earned before the collection flow existed and
+   *  credited automatically at initialization. */
+  retroactive?: boolean
+}
+
+export interface ShopPurchase {
+  itemId: string
+  purchasedAt: string
+  price: number
+  grandfathered?: boolean
 }
 
 export type Phase = 1 | 2 | 3 | 4

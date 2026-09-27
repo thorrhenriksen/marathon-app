@@ -6,9 +6,11 @@ import Progress from './screens/Progress'
 import Settings from './screens/Settings'
 import { seedDatabaseIfEmpty } from './db/seed'
 import { runWeekRebaseMigration } from './db/weekRebaseMigration'
+import { runCoinEconomyMigration } from './db/coinEconomyMigration'
 import { requestPersistentStorage } from './lib/storage'
 import { SessionDetailProvider } from './context/SessionDetailContext'
 import UpdateBanner from './components/UpdateBanner'
+import CelebrationHost from './components/CelebrationHost'
 
 type Tab = 'today' | 'plan' | 'log' | 'progress' | 'settings'
 
@@ -87,6 +89,7 @@ function App() {
     async function init() {
       await runWeekRebaseMigration()
       await seedDatabaseIfEmpty()
+      await runCoinEconomyMigration()
       await requestPersistentStorage()
       if (!cancelled) setReady(true)
     }
@@ -107,6 +110,7 @@ function App() {
   return (
     <div className="mx-auto flex h-dvh w-full max-w-md flex-col overflow-x-hidden bg-bg text-ink">
       <UpdateBanner />
+      <CelebrationHost />
       <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom))]">
         <SessionDetailProvider>
           {activeTab === 'today' && <Today />}

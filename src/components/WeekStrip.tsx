@@ -3,6 +3,7 @@ import { addDays, parseISODate, todayISO } from '../lib/dates'
 import { findTimeOffForDate } from '../lib/timeOffDisplay'
 import { sessionDotColor } from '../lib/sessionColors'
 import { getDisplayStatus, DISPLAY_STATUS_STYLE } from '../lib/sessionStatus'
+import SessionMarker from './SessionMarker'
 import { useSessionDetail } from '../context/SessionDetailContext'
 import type { Session, TimeOff, WeekMeta } from '../types'
 
@@ -115,9 +116,13 @@ export default function WeekStrip({
                   } ${isToday && !isSelected ? 'ring-1 ring-accent/60' : ''}`}
                 >
                   <span className="text-[10px] uppercase text-ink-faint">{WEEKDAY_FMT.format(parseISODate(date))}</span>
-                  <span className={`relative mt-1 flex h-2 w-2 items-center justify-center rounded-full ${dotColor}`}>
-                    {dotIcon && (
-                      <span className="absolute text-[6px] leading-none text-accent-fg">{dotIcon}</span>
+                  <span className="mt-1 flex h-2.5 items-center">
+                    {session ? (
+                      <SessionMarker type={session.type} colorClass={dotColor}>
+                        {dotIcon && <span className="absolute text-[6px] leading-none text-accent-fg">{dotIcon}</span>}
+                      </SessionMarker>
+                    ) : (
+                      <span className={`h-2 w-2 rounded-full ${dotColor}`} />
                     )}
                   </span>
                   <span className="mt-1 text-[11px] text-ink-muted">

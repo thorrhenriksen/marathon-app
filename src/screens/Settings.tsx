@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { formatDisplayDate, todayISO } from '../lib/dates'
@@ -7,21 +7,23 @@ import { computePaceZones, formatPace, formatPaceRange } from '../lib/paceZones'
 import { computeAdjustment, type AdjustmentPreview } from '../lib/adjustmentEngine'
 import { applyTimeOff } from '../db/timeOffAdjustments'
 import { resetToOriginalPlan } from '../db/seed'
-import type { TimeOff, TimeOffLabel } from '../types'
+import type { CelebrationStyle, IconPack, TimeOff, TimeOffLabel } from '../types'
 import Modal from '../components/Modal'
 import AdjustmentSummaryModal from '../components/AdjustmentSummaryModal'
 import DurationInput from '../components/DurationInput'
 import { useTheme } from '../context/ThemeContext'
+import type { ThemeUnlock, CardAccentUnlock } from '../lib/achievements'
 import {
-  computeStreaks,
-  computeTotalDistanceKm,
-  isThemeUnlocked,
-  isCardAccentUnlocked,
-  THEME_UNLOCK_STREAK_WEEKS,
-  CARD_ACCENT_UNLOCK_KM,
-  type ThemeUnlock,
-  type CardAccentUnlock,
-} from '../lib/achievements'
+  DEFAULT_CELEBRATION_STYLE,
+  DEFAULT_ICON_PACK,
+  SHOP_ITEMS,
+  ownsItem,
+  shopItemId,
+  type ShopCategory,
+} from '../lib/coins'
+import { celebrate } from '../lib/celebrate'
+import { CARD_ACCENT_SWATCH, sessionDotColor } from '../lib/sessionColors'
+import SessionMarker from '../components/SessionMarker'
 
 const DAY_OPTIONS: { value: number; label: string }[] = [
   { value: 1, label: 'Mon' },
@@ -67,27 +69,46 @@ const UNLOCKABLE_THEME_OPTIONS: { value: ThemeUnlock; label: string }[] = [
   { value: 'midnight', label: 'Midnight' },
 ]
 
-const CARD_ACCENT_OPTIONS: { value: CardAccentUnlock; label: string; swatchClass: string }[] = [
-  { value: 'bronze', label: 'Bronze', swatchClass: 'bg-[#b45309]' },
-  { value: 'silver', label: 'Silver', swatchClass: 'bg-[#94a3b8]' },
-  { value: 'gold', label: 'Gold', swatchClass: 'bg-[#eab308]' },
-  { value: 'platinum', label: 'Platinum', swatchClass: 'bg-[#a78bfa]' },
+const CARD_ACCENT_OPTIONS: { value: CardAccentUnlock; label: string }[] = [
+  { value: 'bronze', label: 'Bronze' },
+  { value: 'silver', label: 'Silver' },
+  { value: 'gold', label: 'Gold' },
+  { value: 'platinum', label: 'Platinum' },
 ]
+
+const CELEBRATION_OPTIONS: { value: CelebrationStyle; label: string }[] = [
+  { value: 'classic', label: 'Classic' },
+  { value: 'fireworks', label: 'Fireworks' },
+  { value: 'pulse', label: 'Minimal pulse' },
+]
+
+const ICON_PACK_OPTIONS: { value: IconPack; label: string }[] = [
+  { value: 'dots', label: 'Classic dots' },
+  { value: 'glyphs', label: 'Tiny glyphs' },
+  { value: 'squares', label: 'Filled squares' },
+]
+
+function priceLabel(category: ShopCategory, value: string): string {
+  const item = SHOP_ITEMS.find((i) => i.id === shopItemId(category, value))
+  return item ? `${item.price} 🪙 in the shop` : ''
+}
+
+function usePurchases() {
+  const settings = useLiveQuery(() => db.settings.get('settings'), [])
+  return { settings, purchases: settings?.shopPurchases ?? [] }
+}
+
+function pillClass(active: boolean, owned: boolean): string {
+  return active
+    ? 'bg-accent text-accent-fg'
+    : owned
+      ? 'border border-border text-ink-muted'
+      : 'border border-border text-ink-faint opacity-50'
+}
 
 function ThemeSection() {
   const { theme, setTheme } = useTheme()
-  const weeks = useLiveQuery(() => db.weeks.orderBy('week').toArray(), [])
-  const sessions = useLiveQuery(() => db.sessions.toArray(), [])
-  const timeOffEntries = useLiveQuery(() => db.timeOff.toArray(), [])
-  const today = todayISO()
-
-  const longestStreak = useLiveQuery(
-    async () =>
-      weeks && sessions && timeOffEntries
-        ? computeStreaks(sessions, weeks, timeOffEntries, today).longest
-        : 0,
-    [weeks, sessions, timeOffEntries, today],
-  ) ?? 0
+  const { purchases } = usePurchases()
 
   return (
     <SectionCard title="Appearance">
@@ -98,9 +119,7 @@ function ThemeSection() {
             <button
               key={option.value}
               onClick={() => setTheme(option.value)}
-              className={`flex-1 rounded-full px-3 py-2 text-xs font-medium ${
-                active ? 'bg-accent text-accent-fg' : 'border border-border text-ink-muted'
-              }`}
+              className={`min-h-9 flex-1 rounded-full px-3 py-2 text-xs font-medium ${pillClass(active, true)}`}
             >
               {option.label}
             </button>
@@ -110,28 +129,18 @@ function ThemeSection() {
 
       <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
         {UNLOCKABLE_THEME_OPTIONS.map((option) => {
-          const unlocked = isThemeUnlocked(option.value, longestStreak)
+          const owned = ownsItem('theme', option.value, purchases)
           const active = theme === option.value
           return (
             <div key={option.value} className="flex items-center justify-between gap-2">
               <button
-                onClick={() => unlocked && setTheme(option.value)}
-                disabled={!unlocked}
-                className={`flex-1 rounded-full px-3 py-2 text-left text-xs font-medium ${
-                  active
-                    ? 'bg-accent text-accent-fg'
-                    : unlocked
-                      ? 'border border-border text-ink-muted'
-                      : 'border border-border text-ink-faint opacity-50'
-                }`}
+                onClick={() => owned && setTheme(option.value)}
+                disabled={!owned}
+                className={`min-h-9 flex-1 rounded-full px-3 py-2 text-left text-xs font-medium ${pillClass(active, owned)}`}
               >
                 {option.label}
               </button>
-              {!unlocked && (
-                <span className="text-[11px] text-ink-faint">
-                  Unlock at a {THEME_UNLOCK_STREAK_WEEKS[option.value]}-week streak
-                </span>
-              )}
+              {!owned && <span className="text-[11px] text-ink-faint">{priceLabel('theme', option.value)}</span>}
             </div>
           )
         })}
@@ -141,39 +150,103 @@ function ThemeSection() {
 }
 
 function CardAccentSection() {
-  const settings = useLiveQuery(() => db.settings.get('settings'), [])
-  const runs = useLiveQuery(() => db.runs.toArray(), [])
-  const totalDistanceKm = useMemo(() => (runs ? computeTotalDistanceKm(runs) : 0), [runs])
+  const { settings, purchases } = usePurchases()
 
-  async function selectAccent(accent: CardAccentUnlock) {
+  async function selectAccent(accent: CardAccentUnlock | undefined) {
     await db.settings.update('settings', { cardAccent: accent })
   }
 
   return (
     <SectionCard title="Card accent">
       <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={() => selectAccent(undefined)}
+          className={`flex min-h-10 items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-medium text-ink-muted ${
+            !settings?.cardAccent ? 'border-accent' : 'border-border'
+          }`}
+        >
+          <span className="h-3 w-3 shrink-0 rounded-full border border-border" />
+          None
+        </button>
         {CARD_ACCENT_OPTIONS.map((option) => {
-          const unlocked = isCardAccentUnlocked(option.value, totalDistanceKm)
+          const owned = ownsItem('accent', option.value, purchases)
           const active = settings?.cardAccent === option.value
           return (
             <button
               key={option.value}
-              onClick={() => unlocked && selectAccent(option.value)}
-              disabled={!unlocked}
-              className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-medium ${
+              onClick={() => owned && selectAccent(option.value)}
+              disabled={!owned}
+              className={`flex min-h-10 items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-medium ${
                 active ? 'border-accent' : 'border-border'
-              } ${unlocked ? 'text-ink-muted' : 'text-ink-faint opacity-50'}`}
+              } ${owned ? 'text-ink-muted' : 'text-ink-faint opacity-50'}`}
             >
-              <span className={`h-3 w-3 shrink-0 rounded-full ${option.swatchClass}`} />
+              <span className={`h-3 w-3 shrink-0 rounded-full ${CARD_ACCENT_SWATCH[option.value]}`} />
               <span className="flex flex-col">
                 {option.label}
-                {!unlocked && (
-                  <span className="text-[10px] text-ink-faint">
-                    {CARD_ACCENT_UNLOCK_KM[option.value]} km
-                  </span>
-                )}
+                {!owned && <span className="text-[10px] text-ink-faint">{priceLabel('accent', option.value)}</span>}
               </span>
             </button>
+          )
+        })}
+      </div>
+    </SectionCard>
+  )
+}
+
+function CosmeticsSection() {
+  const { settings, purchases } = usePurchases()
+  const celebrationStyle = settings?.celebrationStyle ?? DEFAULT_CELEBRATION_STYLE
+  const iconPack = settings?.iconPack ?? DEFAULT_ICON_PACK
+
+  return (
+    <SectionCard title="Celebrations & icons">
+      <p className="mb-2 text-xs text-ink-faint">Celebration style</p>
+      <div className="flex flex-col gap-2">
+        {CELEBRATION_OPTIONS.map((option) => {
+          const owned = ownsItem('celebration', option.value, purchases)
+          const active = celebrationStyle === option.value
+          return (
+            <div key={option.value} className="flex items-center gap-2">
+              <button
+                onClick={() => owned && db.settings.update('settings', { celebrationStyle: option.value })}
+                disabled={!owned}
+                className={`min-h-9 flex-1 rounded-full px-3 py-2 text-left text-xs font-medium ${pillClass(active, owned)}`}
+              >
+                {option.label}
+              </button>
+              {owned ? (
+                <button onClick={() => celebrate({ style: option.value })} className="px-2 text-[11px] font-medium text-ink-muted">
+                  Preview
+                </button>
+              ) : (
+                <span className="text-[11px] text-ink-faint">{priceLabel('celebration', option.value)}</span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <p className="mt-4 mb-2 text-xs text-ink-faint">Calendar icon pack</p>
+      <div className="flex flex-col gap-2">
+        {ICON_PACK_OPTIONS.map((option) => {
+          const owned = ownsItem('icons', option.value, purchases)
+          const active = iconPack === option.value
+          return (
+            <div key={option.value} className="flex items-center gap-2">
+              <button
+                onClick={() => owned && db.settings.update('settings', { iconPack: option.value })}
+                disabled={!owned}
+                className={`flex min-h-9 flex-1 items-center justify-between rounded-full px-3 py-2 text-left text-xs font-medium ${pillClass(active, owned)}`}
+              >
+                {option.label}
+                <span className="flex items-center gap-1">
+                  {(['easy', 'long', 'tempo', 'strength'] as const).map((t) => (
+                    <SessionMarker key={t} type={t} colorClass={active ? 'bg-accent-fg' : sessionDotColor(t)} pack={option.value} />
+                  ))}
+                </span>
+              </button>
+              {!owned && <span className="text-[11px] text-ink-faint">{priceLabel('icons', option.value)}</span>}
+            </div>
           )
         })}
       </div>
@@ -628,6 +701,7 @@ export default function Settings() {
       <h1 className="text-lg font-semibold text-ink">Settings</h1>
       <ThemeSection />
       <CardAccentSection />
+      <CosmeticsSection />
       <GoalSection />
       <TimeOffSection />
       <PreferredDaysSection />

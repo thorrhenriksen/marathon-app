@@ -7,6 +7,7 @@ import { getDisplayStatus } from '../lib/sessionStatus'
 import { sessionDotColor } from '../lib/sessionColors'
 import { useSessionDetail } from '../context/SessionDetailContext'
 import type { Session, SessionType, WeekMeta, TimeOff } from '../types'
+import SessionMarker from '../components/SessionMarker'
 import AdjustmentSummaryModal from '../components/AdjustmentSummaryModal'
 
 const SESSION_TYPE_LABELS: Record<SessionType, string> = {
@@ -185,7 +186,7 @@ function WeekCard({
                       {presentation.icon}
                     </span>
                   ) : (
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${presentation.className}`} />
+                    <SessionMarker type={session.type} colorClass={presentation.className} />
                   )}
                   <span className="w-9 shrink-0 text-[11px] uppercase text-ink-faint">
                     {formatDisplayDate(session.date).slice(0, 3)}

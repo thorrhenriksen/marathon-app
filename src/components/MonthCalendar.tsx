@@ -3,6 +3,7 @@ import { addDays, parseISODate, startOfWeek, toISODate, todayISO } from '../lib/
 import { findTimeOffForDate } from '../lib/timeOffDisplay'
 import { sessionDotColor } from '../lib/sessionColors'
 import { getDisplayStatus, DISPLAY_STATUS_STYLE } from '../lib/sessionStatus'
+import SessionMarker from './SessionMarker'
 import { useSessionDetail } from '../context/SessionDetailContext'
 import { RACE_DATE } from '../db/seed'
 import type { Session, TimeOff } from '../types'
@@ -100,7 +101,9 @@ export default function MonthCalendar({ sessions, timeOffEntries, selectedDate, 
               <span className={`text-[11px] ${isToday ? 'font-bold text-accent' : 'text-ink-muted'}`}>
                 {parseISODate(date).getDate()}
               </span>
-              <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
+              <span className="flex h-2 items-center">
+                {session ? <SessionMarker type={session.type} colorClass={dotColor} size={6} /> : <span className="h-1.5 w-1.5" />}
+              </span>
             </button>
           )
         })}

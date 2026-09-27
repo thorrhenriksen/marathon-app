@@ -4,7 +4,8 @@
 // through storage and re-derive identical achievements after a simulated
 // reload. Re-run this at the end of every later stage.
 import { describe, it, expect } from 'vitest'
-import { computeAchievements } from '../lib/achievements'
+import { computeAchievements, computeStreaks, computeTotalDistanceKm } from '../lib/achievements'
+import { computeCoinBalance, initializeCoinEconomy } from '../lib/coins'
 import type { Run, Session, Settings, TimeOff, TimeOffAdjustment, WeekMeta } from '../types'
 
 const weeks: WeekMeta[] = [
@@ -143,5 +144,34 @@ describe('regression fixture: additive-only data survives a reload', () => {
     const after = computeAchievements(reloadedInput)
 
     expect(after).toEqual(before)
+  })
+
+  it('initializes the coin economy additively and derives a stable balance across a reload', () => {
+    const achievements = computeAchievements({ sessions, runs, weeks, timeOffEntries: timeOff, today })
+    const init = initializeCoinEconomy({
+      achievements,
+      longestStreak: computeStreaks(sessions, weeks, timeOff, today).longest,
+      totalDistanceKm: computeTotalDistanceKm(runs),
+      currentTheme: settings.theme,
+      currentAccent: settings.cardAccent,
+      existingCollections: [],
+      existingPurchases: [],
+      now: '2026-09-27T00:00:00.000Z',
+    })
+    // The fixture's selected bronze accent is kept for free.
+    expect(init.purchases.find((p) => p.itemId === 'accent-bronze')).toMatchObject({ price: 0, grandfathered: true })
+    // Every unlocked achievement is credited exactly once.
+    const unlockedIds = achievements.filter((a) => a.unlocked).map((a) => a.id)
+    expect(init.collections.map((c) => c.achievementId)).toEqual(unlockedIds)
+
+    const migrated: Settings = { ...settings, achievementCollections: init.collections, shopPurchases: init.purchases }
+    const reloaded = roundTrip(migrated)
+    expect(reloaded).toEqual(migrated)
+    expect(computeCoinBalance(reloaded.achievementCollections!, reloaded.shopPurchases!)).toBe(
+      computeCoinBalance(init.collections, init.purchases),
+    )
+    // Pre-existing settings fields are untouched.
+    const { achievementCollections: _c, shopPurchases: _p, ...rest } = reloaded
+    expect(rest).toEqual(settings)
   })
 })

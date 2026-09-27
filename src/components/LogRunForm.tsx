@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { celebrate } from '../lib/celebrate'
 import { db } from '../db/db'
 import { deleteRun } from '../db/runs'
 import DurationInput from './DurationInput'
@@ -89,6 +90,7 @@ export default function LogRunForm({ session, run, onSaved, onCancel }: LogRunFo
         })
         if (session) {
           await db.sessions.update(session.id, { status: 'completed', linkedRunId: runId })
+          celebrate()
         }
       }
       onSaved()

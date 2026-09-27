@@ -2,6 +2,7 @@
 // checklist flow (SessionDetailSheet) and guided mode (GuidedStrengthSession).
 
 import { db } from '../db/db'
+import { celebrate } from './celebrate'
 import type { Session } from '../types'
 
 export async function completeStrengthSession(session: Session, completionNote?: string): Promise<void> {
@@ -14,4 +15,5 @@ export async function completeStrengthSession(session: Session, completionNote?:
     completedAt: new Date().toISOString(),
     guidedProgress: undefined,
   })
+  celebrate()
 }

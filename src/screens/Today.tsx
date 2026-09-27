@@ -21,6 +21,7 @@ import WeekStrip from '../components/WeekStrip'
 import MonthCalendar from '../components/MonthCalendar'
 import RecoveryCard from '../components/RecoveryCard'
 import StreakChip from '../components/StreakChip'
+import AchievementCollectCard from '../components/AchievementCollectCard'
 
 type CalendarView = 'week' | 'month'
 
@@ -96,6 +97,8 @@ export default function Today() {
         <p className="mt-1 text-sm text-ink-muted">{formatDisplayDateLong(RACE_DATE)}</p>
         <StreakChip className="mt-3" />
       </div>
+
+      <AchievementCollectCard />
 
       {/* Today's session */}
       <section>

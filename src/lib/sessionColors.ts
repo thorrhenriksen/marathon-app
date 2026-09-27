@@ -34,3 +34,11 @@ const SESSION_TYPE_BORDER_COLORS: Record<SessionType, string> = {
 export function sessionBorderColor(type: SessionType): string {
   return SESSION_TYPE_BORDER_COLORS[type]
 }
+
+/** Solid swatch per card accent, for pickers and the shop. */
+export const CARD_ACCENT_SWATCH: Record<'bronze' | 'silver' | 'gold' | 'platinum', string> = {
+  bronze: 'bg-[#b45309]',
+  silver: 'bg-[#94a3b8]',
+  gold: 'bg-[#eab308]',
+  platinum: 'bg-[#a78bfa]',
+}
