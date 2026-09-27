@@ -10,7 +10,7 @@ import {
   startOfWeek,
   todayISO,
 } from '../lib/dates'
-import { computePaceZones, DEFAULT_GOAL_SECONDS } from '../lib/paceZones'
+import { useGoalEngine } from '../lib/useGoalEngine'
 import { getWeekAdjustments } from '../lib/timeOffDisplay'
 import type { Session, TimeOff } from '../types'
 import Modal from '../components/Modal'
@@ -22,13 +22,13 @@ import MonthCalendar from '../components/MonthCalendar'
 import RecoveryCard from '../components/RecoveryCard'
 import StreakChip from '../components/StreakChip'
 import AchievementCollectCard from '../components/AchievementCollectCard'
+import GoalUnlockCard from '../components/GoalUnlockCard'
 
 type CalendarView = 'week' | 'month'
 
 export default function Today() {
   const today = todayISO()
 
-  const goal = useLiveQuery(() => db.goals.get('goal'), [])
   const settings = useLiveQuery(() => db.settings.get('settings'), [])
   const todaySession = useLiveQuery(
     () => db.sessions.where('date').equals(today).first(),
@@ -51,7 +51,8 @@ export default function Today() {
   const [viewedWeekStart, setViewedWeekStart] = useState(currentWeekStart)
   const [jumpToTodaySignal, setJumpToTodaySignal] = useState(0)
 
-  const zones = computePaceZones(goal?.targetTimeSeconds ?? DEFAULT_GOAL_SECONDS)
+  const engine = useGoalEngine()
+  const zones = engine?.zones
   const daysToRace = daysBetween(today, RACE_DATE)
 
   const viewedWeekMeta = (weeks ?? []).find((w) => w.startDate === viewedWeekStart)
@@ -78,7 +79,7 @@ export default function Today() {
   const selectedSession = (allSessions ?? []).find((s) => s.date === selectedDate)
   const showSelectedDayCard = selectedDate !== today
 
-  if (!allSessions || !weeks) {
+  if (!allSessions || !weeks || !zones) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <p className="text-sm text-ink-faint">Loading…</p>
@@ -98,6 +99,7 @@ export default function Today() {
         <StreakChip className="mt-3" />
       </div>
 
+      <GoalUnlockCard />
       <AchievementCollectCard />
 
       {/* Today's session */}

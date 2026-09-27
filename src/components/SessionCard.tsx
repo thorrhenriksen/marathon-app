@@ -23,6 +23,12 @@ export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   strength: 'Strength',
 }
 
+/** Marathon race day follows the race-day plan (B goal until the gates
+ *  unlock A); a shorter tune-up race follows current fitness's equivalent. */
+export function racePaceFor(session: Session, zones: PaceZones): number {
+  return session.plannedDistanceKm > 30 ? zones.raceDayPaceSecPerKm : zones.halfMarathonPaceSecPerKm
+}
+
 export function paceGuidanceFor(session: Session, zones: PaceZones): string {
   switch (session.type) {
     case 'easy':
@@ -32,8 +38,9 @@ export function paceGuidanceFor(session: Session, zones: PaceZones): string {
     case 'tempo':
       return formatPaceRange(zones.tempoPaceMinSecPerKm, zones.tempoPaceMaxSecPerKm)
     case 'marathon-pace':
-    case 'race':
       return formatPace(zones.marathonPaceSecPerKm)
+    case 'race':
+      return formatPace(racePaceFor(session, zones))
     case 'rest':
     case 'strength':
       return '—'

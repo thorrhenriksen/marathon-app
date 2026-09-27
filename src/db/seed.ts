@@ -4,7 +4,7 @@
 import { db } from './db'
 import { WEEK_PLAN, PHASE_LABELS } from './weekPlan'
 import { addDays } from '../lib/dates'
-import { DEFAULT_GOAL_SECONDS } from '../lib/paceZones'
+import { DEFAULT_A_GOAL_SECONDS } from '../lib/goalEngine'
 import { generateStrengthSessions } from '../lib/strengthSchedule'
 import type { Session, WeekMeta } from '../types'
 
@@ -74,7 +74,8 @@ export async function seedDatabaseIfEmpty(): Promise<void> {
     if (goalCount === 0) {
       await db.goals.add({
         id: 'goal',
-        targetTimeSeconds: DEFAULT_GOAL_SECONDS,
+        targetTimeSeconds: DEFAULT_A_GOAL_SECONDS,
+        aGoalSeconds: DEFAULT_A_GOAL_SECONDS,
         updatedAt: new Date().toISOString(),
       })
     }

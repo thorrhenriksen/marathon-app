@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  findQualityRun,
   predictRaceTimes,
   classifyAdherence,
   computeLongRunProgressionRatio,
@@ -57,34 +56,15 @@ function makeWeek(overrides: Partial<WeekMeta> = {}): WeekMeta {
   }
 }
 
-describe('findQualityRun', () => {
-  it('returns undefined when no run qualifies', () => {
-    expect(findQualityRun([], '2026-09-04')).toBeUndefined()
-    expect(findQualityRun([makeRun({ distanceKm: 2 })], '2026-09-04')).toBeUndefined()
-    // Too old (> 42 days back).
-    expect(findQualityRun([makeRun({ distanceKm: 5, date: '2026-06-01' })], '2026-09-04')).toBeUndefined()
-  })
-
-  it('picks the fastest-pace run among eligible runs', () => {
-    const runs = [
-      makeRun({ distanceKm: 5, paceSecPerKm: 300, date: '2026-08-20' }),
-      makeRun({ distanceKm: 8, paceSecPerKm: 280, date: '2026-08-25' }),
-      makeRun({ distanceKm: 3, paceSecPerKm: 320, date: '2026-08-30' }),
-    ]
-    const result = findQualityRun(runs, '2026-09-04')
-    expect(result?.paceSecPerKm).toBe(280)
-  })
-})
-
 describe('predictRaceTimes', () => {
   it('returns a marathon range, never a single number', () => {
-    const predictions = predictRaceTimes({ distanceKm: 10, durationSeconds: 2400, paceSecPerKm: 240, date: '2026-08-30' })
+    const predictions = predictRaceTimes(40)
     expect(predictions.marathonHighSeconds).toBeGreaterThan(predictions.marathonLowSeconds)
     expect(predictions.marathonHighSeconds / predictions.marathonLowSeconds).toBeCloseTo(1.05, 5)
   })
 
-  it('predicts longer times for longer target distances (Riegel monotonicity)', () => {
-    const predictions = predictRaceTimes({ distanceKm: 10, durationSeconds: 2400, paceSecPerKm: 240, date: '2026-08-30' })
+  it('predicts longer times for longer target distances', () => {
+    const predictions = predictRaceTimes(40)
     expect(predictions.fiveKSeconds).toBeLessThan(predictions.tenKSeconds)
     expect(predictions.tenKSeconds).toBeLessThan(predictions.halfMarathonSeconds)
     expect(predictions.halfMarathonSeconds).toBeLessThan(predictions.marathonLowSeconds)

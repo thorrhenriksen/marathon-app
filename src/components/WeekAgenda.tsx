@@ -2,7 +2,8 @@ import { useRef, useState, type TouchEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { addDays, formatDateRangeShort, todayISO } from '../lib/dates'
-import { computePaceZones, DEFAULT_GOAL_SECONDS, formatDuration } from '../lib/paceZones'
+import { formatDuration } from '../lib/paceZones'
+import { useGoalEngine } from '../lib/useGoalEngine'
 import { getDisplayStatus, DISPLAY_STATUS_STYLE } from '../lib/sessionStatus'
 import { sessionBorderColor } from '../lib/sessionColors'
 import { PHASE_LABELS } from '../db/weekPlan'
@@ -162,13 +163,13 @@ function WeekHeader({ week, totalKm, totalMinutes, canPrev, canNext, isCurrent, 
 export default function WeekAgenda() {
   const weeks = useLiveQuery(() => db.weeks.orderBy('week').toArray(), [])
   const sessions = useLiveQuery(() => db.sessions.toArray(), [])
-  const goal = useLiveQuery(() => db.goals.get('goal'), [])
+  const engine = useGoalEngine()
   const { openSessionDetail } = useSessionDetail()
   const today = todayISO()
   const [viewedWeek, setViewedWeek] = useState<number | null>(null)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
 
-  if (!weeks || !sessions) {
+  if (!weeks || !sessions || !engine) {
     return (
       <div className="flex flex-1 items-center justify-center py-10">
         <p className="text-sm text-ink-faint">Loading week…</p>
@@ -183,7 +184,7 @@ export default function WeekAgenda() {
   const week = weeks.find((w) => w.week === weekNumber)
   if (!week) return null
 
-  const zones = computePaceZones(goal?.targetTimeSeconds ?? DEFAULT_GOAL_SECONDS)
+  const zones = engine.zones
   const weekSessions = sessions.filter((s) => s.week === weekNumber)
   const totals = computeWeekTotals(weekSessions, zones)
   const days = Array.from({ length: 7 }, (_, i) => addDays(week.startDate, i))

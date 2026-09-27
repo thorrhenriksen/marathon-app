@@ -2,8 +2,8 @@
 // Statistics segment. Mirrors achievements.ts's style: every value here is
 // recomputed from runs/sessions/weeks on every load, nothing is persisted.
 
-import { daysBetween } from './dates'
 import { computeTotalDistanceKm } from './achievements'
+import { equivalentTimes } from './vdot'
 import type { Run, Session, WeekMeta } from '../types'
 
 /** Re-exported under a name that fits its Statistics-tab framing (a running
@@ -21,43 +21,11 @@ function findRunForSession(session: Session, runs: Run[]): Run | undefined {
   )
 }
 
-// --- Quality run + race predictor -----------------------------------------
+// --- Race predictor ---------------------------------------------------------
 
-const QUALITY_RUN_MIN_KM = 3
-const QUALITY_RUN_LOOKBACK_DAYS = 42
-const RIEGEL_EXPONENT = 1.06
-const MARATHON_KM = 42.195
-const HALF_MARATHON_KM = 21.0975
 const MARATHON_RANGE_HIGH_MULTIPLIER = 1.05
 
-export interface QualityRun {
-  distanceKm: number
-  durationSeconds: number
-  paceSecPerKm: number
-  date: string
-}
-
-/** Fastest pace among runs of at least 3km logged within the last 6 weeks.
- *  Returns undefined when no qualifying run exists — callers must render an
- *  explicit empty state rather than falling back to stale data. */
-export function findQualityRun(runs: Run[], today: string): QualityRun | undefined {
-  const eligible = runs.filter((r) => {
-    if (r.distanceKm < QUALITY_RUN_MIN_KM || r.paceSecPerKm <= 0) return false
-    const age = daysBetween(r.date, today)
-    return age >= 0 && age <= QUALITY_RUN_LOOKBACK_DAYS
-  })
-  if (eligible.length === 0) return undefined
-  const fastest = eligible.reduce((best, r) => (r.paceSecPerKm < best.paceSecPerKm ? r : best))
-  return {
-    distanceKm: fastest.distanceKm,
-    durationSeconds: fastest.durationSeconds,
-    paceSecPerKm: fastest.paceSecPerKm,
-    date: fastest.date,
-  }
-}
-
 export interface RacePredictions {
-  sourceRun: QualityRun
   fiveKSeconds: number
   tenKSeconds: number
   halfMarathonSeconds: number
@@ -66,24 +34,17 @@ export interface RacePredictions {
   marathonHighSeconds: number
 }
 
-function riegel(t1Seconds: number, d1Km: number, d2Km: number): number {
-  return t1Seconds * Math.pow(d2Km / d1Km, RIEGEL_EXPONENT)
-}
-
-/** Riegel-formula (T2 = T1 x (D2/D1)^1.06) predictions from a single quality
- *  run. Marathon is deliberately a range (Riegel .. Riegel x 1.05) — Riegel's
- *  extrapolation error grows with distance ratio, so a single marathon number
- *  overstates precision (see Vickers & Vertosick 2016). */
-export function predictRaceTimes(qualityRun: QualityRun): RacePredictions {
-  const { durationSeconds: t1, distanceKm: d1 } = qualityRun
-  const marathonLowSeconds = riegel(t1, d1, MARATHON_KM)
+/** VDOT-equivalent race times from current fitness (the goal engine's single
+ *  source of truth). The marathon is a range — table equivalents run
+ *  optimistic for first marathons, so the high end allows +5%. */
+export function predictRaceTimes(currentVdot: number): RacePredictions {
+  const eq = equivalentTimes(currentVdot)
   return {
-    sourceRun: qualityRun,
-    fiveKSeconds: riegel(t1, d1, 5),
-    tenKSeconds: riegel(t1, d1, 10),
-    halfMarathonSeconds: riegel(t1, d1, HALF_MARATHON_KM),
-    marathonLowSeconds,
-    marathonHighSeconds: marathonLowSeconds * MARATHON_RANGE_HIGH_MULTIPLIER,
+    fiveKSeconds: eq.fiveK,
+    tenKSeconds: eq.tenK,
+    halfMarathonSeconds: eq.half,
+    marathonLowSeconds: eq.marathon,
+    marathonHighSeconds: eq.marathon * MARATHON_RANGE_HIGH_MULTIPLIER,
   }
 }
 

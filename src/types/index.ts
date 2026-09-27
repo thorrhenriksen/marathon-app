@@ -70,9 +70,14 @@ export interface Session {
   exercises?: SessionExercise[]
   estimatedMinutes?: number
   completionNote?: string
+  /** Injury-variant substitution applied to a strength session (tracked for
+   *  the goal-engine gate and the "smart call" achievement). */
+  injuryVariant?: InjuryVariant
   /** Resume point for guided mode — persisted so an app kill mid-workout can resume. */
   guidedProgress?: { currentExerciseIndex: number; completedExerciseIds: string[] }
 }
+
+export type InjuryVariant = 'sore-knees' | 'sore-toe' | 'sore-knees-toe'
 
 export type TimeOffLabel = 'holiday' | 'illness' | 'other'
 
@@ -105,8 +110,30 @@ export interface Run {
 
 export interface Goal {
   id: 'goal'
+  /** Legacy single goal time. Kept (never rewritten) for backward
+   *  compatibility with older backups; the goal engine reads aGoalSeconds. */
   targetTimeSeconds: number
   updatedAt: string
+  /** A goal: the aspiration. Only affects race-day pacing, goal references,
+   *  and gate targets — never training paces. */
+  aGoalSeconds?: number
+  /** B goal. Undefined = auto (follows current fitness's marathon equivalent). */
+  bGoalSeconds?: number
+  /** Races and time trials entered directly (uncapped fitness evidence). */
+  fitnessTests?: FitnessTest[]
+  /** The A goal (seconds) for which the 3–5 VDOT gap warning was acknowledged. */
+  gapAcknowledgedForSeconds?: number
+  /** Set when the A-goal unlock celebration has been shown for aGoalSeconds. */
+  aGoalUnlockCelebratedForSeconds?: number
+}
+
+export interface FitnessTest {
+  id: string
+  date: string
+  distanceKm: number
+  durationSeconds: number
+  kind: 'race' | 'time-trial'
+  note?: string
 }
 
 export interface Settings {
@@ -206,4 +233,8 @@ export interface PaceZones {
   tempoPaceMinSecPerKm: number
   tempoPaceMaxSecPerKm: number
   raceGoalTimeSeconds: number
+  /** Marathon race-day pace: B goal until the gates unlock the A goal. */
+  raceDayPaceSecPerKm: number
+  /** Current-fitness half-marathon equivalent pace (tune-up race guidance). */
+  halfMarathonPaceSecPerKm: number
 }

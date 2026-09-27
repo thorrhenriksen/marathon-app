@@ -5,6 +5,9 @@ const MARATHON_KM = 42.195
 /** Default goal: 4:30:00 marathon finish time, in seconds. */
 export const DEFAULT_GOAL_SECONDS = 4 * 3600 + 30 * 60
 
+/** Legacy goal-derived zones. The app now derives every pace from current
+ *  fitness (see goalEngine.computeTrainingZones); this remains only as a
+ *  simple fixture for duration-estimate tests. */
 export function computePaceZones(targetTimeSeconds: number): PaceZones {
   const marathonPaceSecPerKm = targetTimeSeconds / MARATHON_KM
   return {
@@ -14,14 +17,17 @@ export function computePaceZones(targetTimeSeconds: number): PaceZones {
     tempoPaceMinSecPerKm: marathonPaceSecPerKm - 30,
     tempoPaceMaxSecPerKm: marathonPaceSecPerKm - 20,
     raceGoalTimeSeconds: targetTimeSeconds,
+    raceDayPaceSecPerKm: marathonPaceSecPerKm,
+    halfMarathonPaceSecPerKm: marathonPaceSecPerKm - 15,
   }
 }
 
 /** Formats seconds-per-km as "M:SS/km". */
 export function formatPace(secPerKm: number): string {
   if (!Number.isFinite(secPerKm) || secPerKm <= 0) return '—'
-  const mins = Math.floor(secPerKm / 60)
-  const secs = Math.round(secPerKm % 60)
+  const total = Math.round(secPerKm)
+  const mins = Math.floor(total / 60)
+  const secs = total % 60
   return `${mins}:${String(secs).padStart(2, '0')}/km`
 }
 

@@ -3,14 +3,13 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { formatDisplayDate, todayISO } from '../lib/dates'
 import { isStoragePersisted } from '../lib/storage'
-import { computePaceZones, formatPace, formatPaceRange } from '../lib/paceZones'
 import { computeAdjustment, type AdjustmentPreview } from '../lib/adjustmentEngine'
 import { applyTimeOff } from '../db/timeOffAdjustments'
 import { resetToOriginalPlan } from '../db/seed'
 import type { CelebrationStyle, IconPack, TimeOff, TimeOffLabel } from '../types'
 import Modal from '../components/Modal'
 import AdjustmentSummaryModal from '../components/AdjustmentSummaryModal'
-import DurationInput from '../components/DurationInput'
+import GoalSettings from '../components/GoalSettings'
 import { useTheme } from '../context/ThemeContext'
 import type { ThemeUnlock, CardAccentUnlock } from '../lib/achievements'
 import {
@@ -250,54 +249,6 @@ function CosmeticsSection() {
           )
         })}
       </div>
-    </SectionCard>
-  )
-}
-
-function GoalSection() {
-  const goal = useLiveQuery(() => db.goals.get('goal'), [])
-  const [draftSeconds, setDraftSeconds] = useState(0)
-  const [saved, setSaved] = useState(false)
-
-  const zones = draftSeconds > 0 ? computePaceZones(draftSeconds) : null
-
-  async function handleSave() {
-    if (draftSeconds <= 0) return
-    await db.goals.put({ id: 'goal', targetTimeSeconds: draftSeconds, updatedAt: new Date().toISOString() })
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-  }
-
-  return (
-    <SectionCard title="Goal time">
-      <div className="flex flex-col gap-3">
-        <DurationInput seconds={goal?.targetTimeSeconds ?? 0} onChange={setDraftSeconds} />
-        <button onClick={handleSave} className={primaryButtonClass}>
-          Save
-        </button>
-      </div>
-      {saved && <p className="mt-2 text-xs text-accent">Saved.</p>}
-
-      {zones && (
-        <div className="mt-4 flex flex-col gap-2 border-t border-border pt-3 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-ink-muted">Marathon pace</span>
-            <span className="font-medium text-ink">{formatPace(zones.marathonPaceSecPerKm)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-ink-muted">Easy pace</span>
-            <span className="font-medium text-ink">
-              {formatPaceRange(zones.easyPaceMinSecPerKm, zones.easyPaceMaxSecPerKm)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-ink-muted">Tempo pace</span>
-            <span className="font-medium text-ink">
-              {formatPaceRange(zones.tempoPaceMinSecPerKm, zones.tempoPaceMaxSecPerKm)}
-            </span>
-          </div>
-        </div>
-      )}
     </SectionCard>
   )
 }
@@ -699,13 +650,13 @@ export default function Settings() {
   return (
     <div className="flex flex-col gap-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
       <h1 className="text-lg font-semibold text-ink">Settings</h1>
-      <ThemeSection />
-      <CardAccentSection />
-      <CosmeticsSection />
-      <GoalSection />
+      <GoalSettings />
       <TimeOffSection />
       <PreferredDaysSection />
       <GuidedSessionPreferencesSection />
+      <ThemeSection />
+      <CardAccentSection />
+      <CosmeticsSection />
       <BackupSection />
       <ResetPlanSection />
     </div>

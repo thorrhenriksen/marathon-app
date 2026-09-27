@@ -13,7 +13,8 @@ import {
 } from 'recharts'
 import { db } from '../db/db'
 import { addDays, todayISO } from '../lib/dates'
-import { formatPace, DEFAULT_GOAL_SECONDS } from '../lib/paceZones'
+import { formatPace } from '../lib/paceZones'
+import { useGoalEngine } from '../lib/useGoalEngine'
 import { computeAchievements, computeStreaks, computeAdherence } from '../lib/achievements'
 import StreakChip from '../components/StreakChip'
 import AchievementsTab from '../components/AchievementsTab'
@@ -172,7 +173,7 @@ export default function Progress() {
   const runs = useLiveQuery(() => db.runs.orderBy('date').toArray(), [])
   const timeOffEntries = useLiveQuery(() => db.timeOff.toArray(), [])
   const settings = useLiveQuery(() => db.settings.get('settings'), [])
-  const goal = useLiveQuery(() => db.goals.get('goal'), [])
+  const engine = useGoalEngine()
 
 
   const weeklyVolume = useMemo(
@@ -222,7 +223,7 @@ export default function Progress() {
     db.settings.update('settings', { progressTab: next })
   }
 
-  if (!weeks || !sessions || !runs) {
+  if (!weeks || !sessions || !runs || !engine) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <p className="text-sm text-ink-faint">Loading progress…</p>
@@ -395,7 +396,7 @@ export default function Progress() {
             sessions={sessions}
             runs={runs}
             weeks={weeks}
-            goalSeconds={goal?.targetTimeSeconds ?? DEFAULT_GOAL_SECONDS}
+            engine={engine}
             today={today}
           />
         </>

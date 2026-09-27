@@ -6,7 +6,8 @@
 import { describe, it, expect } from 'vitest'
 import { computeAchievements, computeStreaks, computeTotalDistanceKm } from '../lib/achievements'
 import { computeCoinBalance, initializeCoinEconomy } from '../lib/coins'
-import type { Run, Session, Settings, TimeOff, TimeOffAdjustment, WeekMeta } from '../types'
+import { computeGoalEngineState } from '../lib/goalEngine'
+import type { Goal, Run, Session, Settings, TimeOff, TimeOffAdjustment, WeekMeta } from '../types'
 
 const weeks: WeekMeta[] = [
   {
@@ -112,6 +113,8 @@ const settings: Settings = {
   achievementsHasUnseenUnlock: false,
 }
 
+const legacyGoal: Goal = { id: 'goal', targetTimeSeconds: 3 * 3600 + 25 * 60, updatedAt: '2026-08-20T00:00:00.000Z' }
+
 const today = '2026-09-04'
 
 /** Simulates persistence + reload via a JSON round-trip — a superset of what
@@ -173,5 +176,25 @@ describe('regression fixture: additive-only data survives a reload', () => {
     // Pre-existing settings fields are untouched.
     const { achievementCollections: _c, shopPurchases: _p, ...rest } = reloaded
     expect(rest).toEqual(settings)
+  })
+
+  it('migrates the legacy goal into the A goal additively; paces come from fitness, not the goal', () => {
+    // What runGoalEngineMigration writes: aGoalSeconds added, nothing removed.
+    const migrated: Goal = { ...legacyGoal, aGoalSeconds: legacyGoal.targetTimeSeconds }
+    expect(roundTrip(migrated)).toEqual(migrated)
+    expect(migrated.targetTimeSeconds).toBe(legacyGoal.targetTimeSeconds)
+
+    const before = computeGoalEngineState({ goal: legacyGoal, runs, sessions, weeks, today })
+    const after = computeGoalEngineState({ goal: roundTrip(migrated), runs: roundTrip(runs), sessions: roundTrip(sessions), weeks: roundTrip(weeks), today })
+    expect(after).toEqual(before)
+    expect(after.goals.aSeconds).toBe(3 * 3600 + 25 * 60)
+    // The fixture's only run (5 km in 25:00) is the fitness source.
+    expect(after.fitness?.source.runId).toBe('r1')
+
+    // Editing the A goal must not move training paces.
+    const edited = computeGoalEngineState({ goal: { ...migrated, aGoalSeconds: 3 * 3600 }, runs, sessions, weeks, today })
+    expect(edited.zones.easyPaceMinSecPerKm).toBe(after.zones.easyPaceMinSecPerKm)
+    expect(edited.zones.tempoPaceMinSecPerKm).toBe(after.zones.tempoPaceMinSecPerKm)
+    expect(edited.zones.marathonPaceSecPerKm).toBe(after.zones.marathonPaceSecPerKm)
   })
 })

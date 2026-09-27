@@ -4,8 +4,6 @@ import { db } from '../db/db'
 import { addDays, formatDisplayDateLong, todayISO } from '../lib/dates'
 import { canMarkMissed, canChangeOutcome } from '../lib/sessionStatus'
 import {
-  computePaceZones,
-  DEFAULT_GOAL_SECONDS,
   estimateSessionDurationMinutes,
   formatDuration,
   formatPace,
@@ -24,7 +22,13 @@ import Modal from './Modal'
 import LogRunForm from './LogRunForm'
 import ExerciseDetailSheet from './ExerciseDetailSheet'
 import GuidedStrengthSession from './GuidedStrengthSession'
-import { SESSION_TYPE_LABELS, paceGuidanceFor } from './SessionCard'
+import { SESSION_TYPE_LABELS, paceGuidanceFor, racePaceFor } from './SessionCard'
+import { useGoalEngine } from '../lib/useGoalEngine'
+import { computeTrainingZones, resolveGoals, marathonVdot, PROVISIONAL_MARATHON_SECONDS } from '../lib/goalEngine'
+
+// Only used for the first render tick while the goal engine loads.
+const FALLBACK_VDOT = marathonVdot(PROVISIONAL_MARATHON_SECONDS)
+const FALLBACK_ZONES = computeTrainingZones(FALLBACK_VDOT, resolveGoals(undefined, FALLBACK_VDOT), false)
 
 interface SessionDetailSheetProps {
   session: Session
@@ -32,7 +36,7 @@ interface SessionDetailSheetProps {
 }
 
 export default function SessionDetailSheet({ session, onClose }: SessionDetailSheetProps) {
-  const goal = useLiveQuery(() => db.goals.get('goal'), [])
+  const engine = useGoalEngine()
   const weekMeta = useLiveQuery(() => db.weeks.get(session.week), [session.week])
   const allSessions = useLiveQuery(() => db.sessions.toArray(), [])
   const runs = useLiveQuery(() => db.runs.toArray(), [])
@@ -54,7 +58,7 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
   const [detailExercise, setDetailExercise] = useState<SessionExercise | null>(null)
   const [guiding, setGuiding] = useState(false)
 
-  const zones = computePaceZones(goal?.targetTimeSeconds ?? DEFAULT_GOAL_SECONDS)
+  const zones = engine?.zones ?? FALLBACK_ZONES
   const estimatedMinutes = estimateSessionDurationMinutes(session.plannedDistanceKm, zones)
 
   const tips: string[] = [...pickTips(session, 3)]
@@ -70,8 +74,9 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
       case 'tempo':
         return (zones.tempoPaceMinSecPerKm + zones.tempoPaceMaxSecPerKm) / 2
       case 'marathon-pace':
-      case 'race':
         return zones.marathonPaceSecPerKm
+      case 'race':
+        return racePaceFor(session, zones)
       case 'easy':
       case 'long':
       case 'strides':

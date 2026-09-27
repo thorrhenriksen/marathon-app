@@ -3,7 +3,6 @@ import { addDays, formatDisplayDate } from '../lib/dates'
 import { formatDuration, formatPace } from '../lib/paceZones'
 import { computeAdherence } from '../lib/achievements'
 import {
-  findQualityRun,
   predictRaceTimes,
   classifyAdherence,
   computeLongRunProgressionRatio,
@@ -17,13 +16,15 @@ import {
   type OnTrackTier,
   type ACWRBand,
 } from '../lib/statistics'
+import { easyRunsRunningHot, type GoalEngineState } from '../lib/goalEngine'
+import { formatPaceRange } from '../lib/paceZones'
 import type { Run, Session, WeekMeta } from '../types'
 
 interface StatisticsSectionProps {
   sessions: Session[]
   runs: Run[]
   weeks: WeekMeta[]
-  goalSeconds: number
+  engine: GoalEngineState
   today: string
 }
 
@@ -75,9 +76,11 @@ function RecordRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-export default function StatisticsSection({ sessions, runs, weeks, goalSeconds, today }: StatisticsSectionProps) {
-  const qualityRun = useMemo(() => findQualityRun(runs, today), [runs, today])
-  const predictions = useMemo(() => (qualityRun ? predictRaceTimes(qualityRun) : undefined), [qualityRun])
+export default function StatisticsSection({ sessions, runs, weeks, engine, today }: StatisticsSectionProps) {
+  const { fitness } = engine
+  const goalSeconds = engine.goals.aSeconds
+  const predictions = useMemo(() => (fitness ? predictRaceTimes(fitness.vdot) : undefined), [fitness])
+  const hotEasy = useMemo(() => easyRunsRunningHot(runs, engine.zones, today), [runs, engine.zones, today])
 
   const onTrack = useMemo(() => {
     if (!predictions) return undefined
@@ -118,15 +121,17 @@ export default function StatisticsSection({ sessions, runs, weeks, goalSeconds, 
     <div className="flex flex-col gap-4">
       <section className="rounded-2xl border border-border bg-surface p-4">
         <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">Race predictor</h2>
-        {!qualityRun || !predictions ? (
+        {!fitness || !predictions ? (
           <p className="text-sm text-ink-faint">
-            No qualifying run in the last 6 weeks (3km+) — log one to see race-time predictions.
+            No fitness evidence yet — log a run of 3 km or more, or enter a time trial in Settings → Goals.
           </p>
         ) : (
           <div className="flex flex-col gap-3">
             <p className="text-xs text-ink-faint">
-              Based on {qualityRun.distanceKm} km on {formatDisplayDate(qualityRun.date)} at{' '}
-              {formatPace(qualityRun.paceSecPerKm)}.
+              Current fitness VDOT {fitness.vdot.toFixed(1)} — based on {fitness.source.distanceKm} km on{' '}
+              {formatDisplayDate(fitness.source.date)} at{' '}
+              {formatPace(fitness.source.durationSeconds / fitness.source.distanceKm)}
+              {fitness.source.kind !== 'run' ? ` (${fitness.source.kind === 'race' ? 'race' : 'time trial'})` : ''}.
             </p>
             <div className="grid grid-cols-3 gap-2">
               <PredictionTile label="5K" value={formatDuration(predictions.fiveKSeconds)} />
@@ -139,18 +144,28 @@ export default function StatisticsSection({ sessions, runs, weeks, goalSeconds, 
                 {formatDuration(predictions.marathonLowSeconds)} – {formatDuration(predictions.marathonHighSeconds)}
               </p>
               <p className="mt-1 text-[11px] text-ink-faint">
-                A range, not a single number — longer extrapolations carry more uncertainty (Vickers &amp; Vertosick,
-                2016).
+                A range, not a single number — VDOT equivalents tend to run optimistic for a first marathon.
               </p>
             </div>
           </div>
         )}
       </section>
 
+      {hotEasy.hot && (
+        <section className="rounded-2xl border border-info/40 bg-info/10 p-4">
+          <h2 className="text-sm font-medium text-info">Easy runs are running hot</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            {hotEasy.hotCount} of your last {hotEasy.total} easy runs were quicker than your easy band (
+            {formatPaceRange(engine.zones.easyPaceMinSecPerKm, engine.zones.easyPaceMaxSecPerKm)}). Easy days build the
+            aerobic base and let the harder sessions land — easing off is the faster route to race day.
+          </p>
+        </section>
+      )}
+
       <section className="rounded-2xl border border-border bg-surface p-4">
         <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-ink-faint">On track for goal</h2>
         {!onTrack ? (
-          <p className="text-sm text-ink-faint">Log a quality run to see your on-track status.</p>
+          <p className="text-sm text-ink-faint">Log a run of 3 km or more to see your on-track status.</p>
         ) : (
           <div className="flex flex-col gap-2">
             <span
@@ -161,7 +176,7 @@ export default function StatisticsSection({ sessions, runs, weeks, goalSeconds, 
             <ul className="mt-1 flex flex-col gap-1 text-xs text-ink-faint">
               <li>Adherence (last 4 weeks): {METRIC_LABEL[onTrack.adherence4wk]}</li>
               <li>Long-run progression: {METRIC_LABEL[onTrack.longRunProgression]}</li>
-              <li>Goal vs predicted range: {METRIC_LABEL[onTrack.marathonRangeVsGoal]}</li>
+              <li>A goal vs predicted range: {METRIC_LABEL[onTrack.marathonRangeVsGoal]}</li>
             </ul>
           </div>
         )}
