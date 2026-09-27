@@ -1,18 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import {
-  initialWeekWindow,
-  expandWindowStart,
-  expandWindowEnd,
-  weeksInWindow,
-  computeWeekTotals,
-} from './weekAgenda'
+import { findCurrentWeekNumber, clampWeek, swipeDirection, computeWeekTotals, sessionEstimatedMinutes } from './weekAgenda'
 import { computePaceZones } from './paceZones'
 import type { Session, WeekMeta } from '../types'
 
-function makeWeek(week: number): WeekMeta {
+function makeWeek(week: number, startDate = '2026-08-24'): WeekMeta {
   return {
     week,
-    startDate: '2026-08-24',
+    startDate,
     phase: 1,
     phaseLabel: 'Base building',
     targetVolumeKm: 20,
@@ -37,33 +31,40 @@ function makeSession(overrides: Partial<Session>): Session {
   }
 }
 
-describe('initialWeekWindow', () => {
-  it('centers on the current week +/- 4 weeks', () => {
-    expect(initialWeekWindow(10, 1, 35)).toEqual({ start: 6, end: 14 })
+describe('findCurrentWeekNumber', () => {
+  const weeks = [makeWeek(1, '2026-08-24'), makeWeek(2, '2026-08-31'), makeWeek(3, '2026-09-07')]
+
+  it('picks the week containing today', () => {
+    expect(findCurrentWeekNumber(weeks, '2026-09-02')).toBe(2)
+    expect(findCurrentWeekNumber(weeks, '2026-08-31')).toBe(2)
   })
 
-  it('clamps to the available week range', () => {
-    expect(initialWeekWindow(2, 1, 35)).toEqual({ start: 1, end: 6 })
-    expect(initialWeekWindow(34, 1, 35)).toEqual({ start: 30, end: 35 })
-  })
-})
-
-describe('expandWindowStart / expandWindowEnd', () => {
-  it('grows the window by 4 weeks in each direction', () => {
-    expect(expandWindowStart({ start: 10, end: 14 }, 1)).toEqual({ start: 6, end: 14 })
-    expect(expandWindowEnd({ start: 10, end: 14 }, 35)).toEqual({ start: 10, end: 18 })
+  it('falls back to the first week before the plan starts', () => {
+    expect(findCurrentWeekNumber(weeks, '2026-08-01')).toBe(1)
   })
 
-  it('clamps at the min/max week bounds', () => {
-    expect(expandWindowStart({ start: 2, end: 14 }, 1)).toEqual({ start: 1, end: 14 })
-    expect(expandWindowEnd({ start: 10, end: 33 }, 35)).toEqual({ start: 10, end: 35 })
+  it('returns null with no weeks', () => {
+    expect(findCurrentWeekNumber([], '2026-08-01')).toBeNull()
   })
 })
 
-describe('weeksInWindow', () => {
-  it('filters weeks to the inclusive window range', () => {
-    const weeks = [makeWeek(1), makeWeek(2), makeWeek(3), makeWeek(4)]
-    expect(weeksInWindow(weeks, { start: 2, end: 3 }).map((w) => w.week)).toEqual([2, 3])
+describe('clampWeek', () => {
+  it('clamps to the plan range', () => {
+    expect(clampWeek(0, 1, 35)).toBe(1)
+    expect(clampWeek(36, 1, 35)).toBe(35)
+    expect(clampWeek(10, 1, 35)).toBe(10)
+  })
+})
+
+describe('swipeDirection', () => {
+  it('pages forward on a left swipe and back on a right swipe', () => {
+    expect(swipeDirection(-80, 5)).toBe(1)
+    expect(swipeDirection(80, -5)).toBe(-1)
+  })
+
+  it('ignores short drags and mostly-vertical scrolls', () => {
+    expect(swipeDirection(-30, 0)).toBe(0)
+    expect(swipeDirection(-80, 70)).toBe(0)
   })
 })
 
@@ -85,5 +86,11 @@ describe('computeWeekTotals', () => {
     const sessions = [makeSession({ id: 's1', type: 'rest', plannedDistanceKm: 0 })]
     const totals = computeWeekTotals(sessions, zones)
     expect(totals).toEqual({ totalKm: 0, totalMinutes: 0 })
+  })
+
+  it('includes strength session estimates in total time', () => {
+    const sessions = [makeSession({ id: 's1', type: 'strength', plannedDistanceKm: 0, estimatedMinutes: 20 })]
+    expect(computeWeekTotals(sessions, zones)).toEqual({ totalKm: 0, totalMinutes: 20 })
+    expect(sessionEstimatedMinutes(sessions[0], zones)).toBe(20)
   })
 })

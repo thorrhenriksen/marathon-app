@@ -20,17 +20,17 @@ export function sessionDotColor(type: SessionType): string {
 }
 
 const SESSION_TYPE_BORDER_COLORS: Record<SessionType, string> = {
-  easy: 'border-accent',
-  long: 'border-info',
-  tempo: 'border-warning',
-  'marathon-pace': 'border-highlight',
-  strides: 'border-accent',
-  race: 'border-danger',
-  rest: 'border-ink-faint',
-  strength: 'border-strength',
+  easy: 'border-l-accent',
+  long: 'border-l-info',
+  tempo: 'border-l-warning',
+  'marathon-pace': 'border-l-highlight',
+  strides: 'border-l-accent',
+  race: 'border-l-danger',
+  rest: 'border-l-ink-faint',
+  strength: 'border-l-strength',
 }
 
-/** Left-edge card border color keyed by session type — same palette as `sessionDotColor`. */
+/** Left-edge-only card border color keyed by session type — same palette as `sessionDotColor`. */
 export function sessionBorderColor(type: SessionType): string {
   return SESSION_TYPE_BORDER_COLORS[type]
 }

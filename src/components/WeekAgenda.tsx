@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRef, useState, type TouchEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { addDays, formatDateRangeShort, todayISO } from '../lib/dates'
@@ -6,9 +6,9 @@ import { computePaceZones, DEFAULT_GOAL_SECONDS, formatDuration } from '../lib/p
 import { getDisplayStatus, DISPLAY_STATUS_STYLE } from '../lib/sessionStatus'
 import { sessionBorderColor } from '../lib/sessionColors'
 import { PHASE_LABELS } from '../db/weekPlan'
-import { initialWeekWindow, expandWindowStart, expandWindowEnd, weeksInWindow, computeWeekTotals } from '../lib/weekAgenda'
+import { findCurrentWeekNumber, clampWeek, swipeDirection, computeWeekTotals, sessionEstimatedMinutes } from '../lib/weekAgenda'
 import { useSessionDetail } from '../context/SessionDetailContext'
-import type { Run, Session, SessionType, WeekMeta } from '../types'
+import type { PaceZones, Run, Session, SessionType, WeekMeta } from '../types'
 
 const WEEKDAY_FMT = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 
@@ -23,39 +23,10 @@ const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   strength: 'Strength',
 }
 
-function DayCard({ session, today, onTap }: { session: Session; today: string; onTap: (s: Session) => void }) {
-  const runs = useSessionRun(session)
-  const displayStatus = getDisplayStatus(session, today)
-  const style = DISPLAY_STATUS_STYLE[displayStatus]
-
-  return (
-    <button
-      onClick={() => onTap(session)}
-      className={`flex w-full items-center gap-3 rounded-xl border border-border border-l-4 bg-surface p-3 text-left ${sessionBorderColor(session.type)}`}
-    >
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-ink">
-            {session.type === 'strength' ? `Strength ${session.variant ?? ''}` : SESSION_TYPE_LABELS[session.type]}
-          </span>
-          {style.icon && (
-            <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${style.badge}`}>
-              {style.icon}
-            </span>
-          )}
-        </div>
-        <p className="mt-0.5 truncate text-xs text-ink-faint">{session.description}</p>
-        {runs && (
-          <p className="mt-1 text-xs text-ink-muted">
-            {runs.distanceKm} km · {formatDuration(runs.durationSeconds)}
-          </p>
-        )}
-      </div>
-      {session.type !== 'strength' && session.type !== 'rest' && !runs && (
-        <span className="shrink-0 text-xs text-ink-faint">{session.plannedDistanceKm} km</span>
-      )}
-    </button>
-  )
+function formatMinutes(minutes: number): string {
+  const rounded = Math.round(minutes)
+  if (rounded < 60) return `${rounded} min`
+  return `${Math.floor(rounded / 60)} h ${String(rounded % 60).padStart(2, '0')}`
 }
 
 function useSessionRun(session: Session): Run | undefined {
@@ -65,133 +36,135 @@ function useSessionRun(session: Session): Run | undefined {
   )
 }
 
+function DayCard({
+  session,
+  today,
+  zones,
+  onTap,
+}: {
+  session: Session
+  today: string
+  zones: PaceZones
+  onTap: (s: Session) => void
+}) {
+  const run = useSessionRun(session)
+  const displayStatus = getDisplayStatus(session, today)
+  const style = DISPLAY_STATUS_STYLE[displayStatus]
+  const estimatedMinutes = sessionEstimatedMinutes(session, zones)
+  const isRun = session.type !== 'strength' && session.type !== 'rest'
+
+  return (
+    <button
+      onClick={() => onTap(session)}
+      className={`flex min-h-14 w-full min-w-0 items-center gap-3 rounded-xl border border-border border-l-4 bg-surface px-3 py-2.5 text-left active:bg-surface-inset ${sessionBorderColor(session.type)}`}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-medium text-ink">
+            {session.type === 'strength' ? `Strength ${session.variant ?? ''}` : SESSION_TYPE_LABELS[session.type]}
+          </span>
+          {style.icon && (
+            <span
+              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold ${style.badge}`}
+              aria-label={style.label}
+            >
+              {style.icon}
+            </span>
+          )}
+        </div>
+        <p className="mt-0.5 truncate text-xs text-ink-faint">
+          {run ? `${run.distanceKm} km · ${formatDuration(run.durationSeconds)}` : session.description}
+        </p>
+      </div>
+      <div className="shrink-0 text-right">
+        {isRun && !run && <p className="text-sm font-medium text-ink">{session.plannedDistanceKm} km</p>}
+        {!run && estimatedMinutes > 0 && <p className="text-[11px] text-ink-faint">~{formatMinutes(estimatedMinutes)}</p>}
+      </div>
+    </button>
+  )
+}
+
 function RestRow() {
   return (
-    <div className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border bg-surface-inset/40 p-3">
+    <div className="flex min-h-11 w-full items-center rounded-xl border border-dashed border-border px-3">
       <span className="text-sm text-ink-faint">Rest</span>
     </div>
   )
 }
 
-interface WeekSectionProps {
-  week: WeekMeta
-  sessions: Session[]
-  isCurrent: boolean
-  today: string
-  onTapSession: (s: Session) => void
-  registerHeaderRef?: (el: HTMLDivElement | null) => void
+function Chevron({ direction }: { direction: 'left' | 'right' }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
+      <path
+        d={direction === 'left' ? 'M15 5l-7 7 7 7' : 'M9 5l7 7-7 7'}
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
 }
 
-function WeekSection({ week, sessions, isCurrent, today, onTapSession, registerHeaderRef }: WeekSectionProps) {
-  const zones = computePaceZones(DEFAULT_GOAL_SECONDS)
-  const totals = computeWeekTotals(sessions, zones)
-  const days = Array.from({ length: 7 }, (_, i) => addDays(week.startDate, i))
+interface WeekHeaderProps {
+  week: WeekMeta
+  totalKm: number
+  totalMinutes: number
+  canPrev: boolean
+  canNext: boolean
+  isCurrent: boolean
+  onPrev: () => void
+  onNext: () => void
+  onToday: () => void
+}
+
+function WeekHeader({ week, totalKm, totalMinutes, canPrev, canNext, isCurrent, onPrev, onNext, onToday }: WeekHeaderProps) {
+  const navButton =
+    'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted active:bg-surface-inset disabled:opacity-30'
 
   return (
-    <section>
-      <div
-        ref={registerHeaderRef}
-        className="sticky top-0 z-[1] -mx-4 flex items-baseline justify-between bg-bg/95 px-4 py-2 backdrop-blur"
-      >
-        <h2 className="text-sm font-semibold text-ink">
-          Week {week.week} · {PHASE_LABELS[week.phase]}
-        </h2>
-        <p className="text-xs text-ink-faint">
-          {formatDateRangeShort(week.startDate)} · {totals.totalKm.toFixed(1)} km · {formatDuration(totals.totalMinutes * 60)}
-        </p>
+    <div className="rounded-2xl border border-border bg-surface p-2">
+      <div className="flex items-center gap-1">
+        <button onClick={onPrev} disabled={!canPrev} className={navButton} aria-label="Previous week">
+          <Chevron direction="left" />
+        </button>
+        <div className="min-w-0 flex-1 text-center">
+          <p className="truncate text-base font-semibold text-ink">
+            Week {week.week} · {PHASE_LABELS[week.phase]}
+          </p>
+          <p className="truncate text-xs text-ink-faint">{formatDateRangeShort(week.startDate)}</p>
+        </div>
+        <button onClick={onNext} disabled={!canNext} className={navButton} aria-label="Next week">
+          <Chevron direction="right" />
+        </button>
       </div>
-      {isCurrent && <div data-current-week-marker />}
-      <div className="flex flex-col gap-2 px-4 pb-2">
-        {days.map((date) => {
-          const session = sessions.find((s) => s.date === date)
-          const isToday = date === today
-          return (
-            <div key={date} className={isToday ? 'ring-1 ring-accent/60 rounded-xl' : ''}>
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-[11px] uppercase text-ink-faint">{WEEKDAY_FMT.format(new Date(`${date}T00:00:00`))}</span>
-              </div>
-              {session ? <DayCard session={session} today={today} onTap={onTapSession} /> : <RestRow />}
-            </div>
-          )
-        })}
+      <div className="mt-1 flex min-h-8 items-center justify-center gap-2 px-2 pb-1">
+        <span className="text-sm font-medium text-ink">{totalKm.toFixed(1)} km</span>
+        <span className="text-ink-faint">·</span>
+        <span className="text-sm text-ink-muted">~{formatMinutes(totalMinutes)}</span>
+        {!isCurrent && (
+          <button
+            onClick={onToday}
+            className="ml-2 rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent"
+          >
+            Today
+          </button>
+        )}
       </div>
-    </section>
+    </div>
   )
 }
 
 export default function WeekAgenda() {
   const weeks = useLiveQuery(() => db.weeks.orderBy('week').toArray(), [])
   const sessions = useLiveQuery(() => db.sessions.toArray(), [])
+  const goal = useLiveQuery(() => db.goals.get('goal'), [])
   const { openSessionDetail } = useSessionDetail()
   const today = todayISO()
+  const [viewedWeek, setViewedWeek] = useState<number | null>(null)
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
 
-  const currentWeekNumber = useMemo(() => {
-    if (!weeks) return null
-    const past = weeks.filter((w) => w.startDate <= today).sort((a, b) => (a.startDate < b.startDate ? 1 : -1))
-    return past[0]?.week ?? weeks[0]?.week ?? null
-  }, [weeks, today])
-
-  const minWeek = weeks?.[0]?.week ?? 1
-  const maxWeek = weeks?.[weeks.length - 1]?.week ?? 1
-
-  const [weekWindow, setWeekWindow] = useState<{ start: number; end: number } | null>(null)
-  const [showTodayButton, setShowTodayButton] = useState(false)
-
-  if (weekWindow === null && currentWeekNumber !== null) {
-    setWeekWindow(initialWeekWindow(currentWeekNumber, minWeek, maxWeek))
-  }
-
-  const containerRef = useRef<HTMLDivElement>(null)
-  const topSentinelRef = useRef<HTMLDivElement>(null)
-  const bottomSentinelRef = useRef<HTMLDivElement>(null)
-  const currentWeekHeaderRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    const top = topSentinelRef.current
-    const bottom = bottomSentinelRef.current
-    const root = containerRef.current
-    if (!top || !bottom || !root) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue
-          if (entry.target === top) {
-            setWeekWindow((w) => (w ? expandWindowStart(w, minWeek) : w))
-          } else if (entry.target === bottom) {
-            setWeekWindow((w) => (w ? expandWindowEnd(w, maxWeek) : w))
-          }
-        }
-      },
-      { root, rootMargin: '200px' },
-    )
-    observer.observe(top)
-    observer.observe(bottom)
-    return () => observer.disconnect()
-  }, [minWeek, maxWeek])
-
-  const hasCurrentWeek = currentWeekNumber !== null
-  useEffect(() => {
-    if (!currentWeekHeaderRef.current || !containerRef.current) return
-    currentWeekHeaderRef.current.scrollIntoView({ block: 'nearest' })
-  }, [hasCurrentWeek])
-
-  useEffect(() => {
-    const root = containerRef.current
-    const header = currentWeekHeaderRef.current
-    if (!root || !header) return
-    const observer = new IntersectionObserver(
-      ([entry]) => setShowTodayButton(!entry.isIntersecting),
-      { root, threshold: 0 },
-    )
-    observer.observe(header)
-    return () => observer.disconnect()
-  }, [weekWindow?.start, weekWindow?.end])
-
-  function scrollToToday() {
-    currentWeekHeaderRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }
-
-  if (!weeks || !sessions || weekWindow === null) {
+  if (!weeks || !sessions) {
     return (
       <div className="flex flex-1 items-center justify-center py-10">
         <p className="text-sm text-ink-faint">Loading week…</p>
@@ -199,41 +172,73 @@ export default function WeekAgenda() {
     )
   }
 
-  const sessionsByWeek = new Map<number, Session[]>()
-  for (const session of sessions) {
-    const list = sessionsByWeek.get(session.week)
-    if (list) list.push(session)
-    else sessionsByWeek.set(session.week, [session])
+  const currentWeekNumber = findCurrentWeekNumber(weeks, today)
+  const minWeek = weeks[0]?.week ?? 1
+  const maxWeek = weeks[weeks.length - 1]?.week ?? 1
+  const weekNumber = clampWeek(viewedWeek ?? currentWeekNumber ?? minWeek, minWeek, maxWeek)
+  const week = weeks.find((w) => w.week === weekNumber)
+  if (!week) return null
+
+  const zones = computePaceZones(goal?.targetTimeSeconds ?? DEFAULT_GOAL_SECONDS)
+  const weekSessions = sessions.filter((s) => s.week === weekNumber)
+  const totals = computeWeekTotals(weekSessions, zones)
+  const days = Array.from({ length: 7 }, (_, i) => addDays(week.startDate, i))
+
+  function goTo(next: number) {
+    setViewedWeek(clampWeek(next, minWeek, maxWeek))
   }
 
-  const visibleWeeks = weeksInWindow(weeks, weekWindow)
+  function handleTouchStart(e: TouchEvent) {
+    const t = e.touches[0]
+    touchStart.current = { x: t.clientX, y: t.clientY }
+  }
+
+  function handleTouchEnd(e: TouchEvent) {
+    const start = touchStart.current
+    touchStart.current = null
+    if (!start) return
+    const t = e.changedTouches[0]
+    const dir = swipeDirection(t.clientX - start.x, t.clientY - start.y)
+    if (dir !== 0) goTo(weekNumber + dir)
+  }
 
   return (
-    <div ref={containerRef} className="relative max-h-[calc(100dvh-11rem)] overflow-y-auto">
-      <div ref={topSentinelRef} className="h-px" />
-      <div className="flex flex-col gap-4">
-        {visibleWeeks.map((week) => (
-          <WeekSection
-            key={week.week}
-            week={week}
-            sessions={sessionsByWeek.get(week.week) ?? []}
-            isCurrent={week.week === currentWeekNumber}
-            today={today}
-            onTapSession={openSessionDetail}
-            registerHeaderRef={week.week === currentWeekNumber ? (el) => (currentWeekHeaderRef.current = el) : undefined}
-          />
-        ))}
-      </div>
-      <div ref={bottomSentinelRef} className="h-px" />
+    <div className="flex w-full min-w-0 touch-pan-y flex-col gap-3" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      <WeekHeader
+        week={week}
+        totalKm={totals.totalKm}
+        totalMinutes={totals.totalMinutes}
+        canPrev={weekNumber > minWeek}
+        canNext={weekNumber < maxWeek}
+        isCurrent={weekNumber === currentWeekNumber}
+        onPrev={() => goTo(weekNumber - 1)}
+        onNext={() => goTo(weekNumber + 1)}
+        onToday={() => setViewedWeek(null)}
+      />
 
-      {showTodayButton && (
-        <button
-          onClick={scrollToToday}
-          className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-20 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-fg shadow-lg"
-        >
-          Today
-        </button>
-      )}
+      <div className="flex flex-col gap-2.5">
+        {days.map((date) => {
+          const daySessions = weekSessions.filter((s) => s.date === date && s.type !== 'rest')
+          const isToday = date === today
+          return (
+            <div key={date} className="min-w-0">
+              <p className={`mb-1 text-[11px] font-medium uppercase ${isToday ? 'text-accent' : 'text-ink-faint'}`}>
+                {isToday ? 'Today · ' : ''}
+                {WEEKDAY_FMT.format(new Date(`${date}T00:00:00`))}
+              </p>
+              {daySessions.length === 0 ? (
+                <RestRow />
+              ) : (
+                <div className={`flex flex-col gap-2 ${isToday ? 'rounded-xl ring-2 ring-accent/50' : ''}`}>
+                  {daySessions.map((s) => (
+                    <DayCard key={s.id} session={s} today={today} zones={zones} onTap={openSessionDetail} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

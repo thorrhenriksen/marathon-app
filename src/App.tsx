@@ -105,9 +105,9 @@ function App() {
   }
 
   return (
-    <div className="mx-auto flex h-dvh max-w-md flex-col bg-bg text-ink">
+    <div className="mx-auto flex h-dvh w-full max-w-md flex-col overflow-x-hidden bg-bg text-ink">
       <UpdateBanner />
-      <div className="flex-1 overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom))]">
+      <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom))]">
         <SessionDetailProvider>
           {activeTab === 'today' && <Today />}
           {activeTab === 'plan' && <Plan />}

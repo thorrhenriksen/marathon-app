@@ -1,39 +1,42 @@
-// Pure helpers for the Train tab's Week agenda: windowed rendering (so we
-// never mount all 35 weeks at once) and per-week planned totals. Kept
-// separate from WeekAgenda.tsx so the windowing math and aggregation can be
-// unit-tested without mounting the component tree.
+// Pure helpers for the Train tab's paged Week agenda: which week is
+// "current", paging bounds, swipe classification, and per-week planned
+// totals. Kept separate from WeekAgenda.tsx so the math can be unit-tested
+// without mounting the component tree.
 
 import type { PaceZones, Session, WeekMeta } from '../types'
 import { estimateSessionDurationMinutes } from './paceZones'
 
-export interface WeekWindow {
-  start: number
-  end: number
-}
-
-const WINDOW_RADIUS = 4
-const WINDOW_EXPAND = 4
-
-/** Centers the initial window on the current week, +/- WINDOW_RADIUS weeks, clamped to the available range. */
-export function initialWeekWindow(currentWeek: number, minWeek: number, maxWeek: number): WeekWindow {
-  return {
-    start: Math.max(minWeek, currentWeek - WINDOW_RADIUS),
-    end: Math.min(maxWeek, currentWeek + WINDOW_RADIUS),
+/** The plan week containing `today`: the latest week starting on or before
+ *  today, falling back to the first week before the plan starts. */
+export function findCurrentWeekNumber(weeks: WeekMeta[], today: string): number | null {
+  let current: WeekMeta | undefined
+  for (const w of weeks) {
+    if (w.startDate <= today && (!current || w.startDate > current.startDate)) current = w
   }
+  return current?.week ?? weeks[0]?.week ?? null
 }
 
-/** Grows the window backwards by WINDOW_EXPAND weeks, clamped at minWeek. */
-export function expandWindowStart(window: WeekWindow, minWeek: number): WeekWindow {
-  return { ...window, start: Math.max(minWeek, window.start - WINDOW_EXPAND) }
+export function clampWeek(week: number, minWeek: number, maxWeek: number): number {
+  return Math.min(maxWeek, Math.max(minWeek, week))
 }
 
-/** Grows the window forwards by WINDOW_EXPAND weeks, clamped at maxWeek. */
-export function expandWindowEnd(window: WeekWindow, maxWeek: number): WeekWindow {
-  return { ...window, end: Math.min(maxWeek, window.end + WINDOW_EXPAND) }
+const SWIPE_MIN_PX = 50
+
+/** Classifies a completed touch gesture: a mostly-horizontal drag of at
+ *  least SWIPE_MIN_PX pages the week (left = next, right = previous);
+ *  anything else (vertical scrolls, taps) returns 0. */
+export function swipeDirection(dx: number, dy: number): -1 | 0 | 1 {
+  if (Math.abs(dx) < SWIPE_MIN_PX) return 0
+  if (Math.abs(dx) < Math.abs(dy) * 1.5) return 0
+  return dx < 0 ? 1 : -1
 }
 
-export function weeksInWindow(weeks: WeekMeta[], window: WeekWindow): WeekMeta[] {
-  return weeks.filter((w) => w.week >= window.start && w.week <= window.end)
+/** Estimated minutes for one session: strength uses its stored estimate,
+ *  runs use distance × the midpoint of the easy pace band. */
+export function sessionEstimatedMinutes(session: Session, zones: PaceZones): number {
+  if (session.type === 'rest') return 0
+  if (session.type === 'strength') return session.estimatedMinutes ?? 0
+  return estimateSessionDurationMinutes(session.plannedDistanceKm, zones)
 }
 
 export interface WeekTotals {
@@ -46,9 +49,6 @@ export function computeWeekTotals(sessions: Session[], zones: PaceZones): WeekTo
   const trackable = sessions.filter((s) => s.type !== 'rest')
   return {
     totalKm: trackable.reduce((sum, s) => sum + s.plannedDistanceKm, 0),
-    totalMinutes: trackable.reduce(
-      (sum, s) => sum + estimateSessionDurationMinutes(s.plannedDistanceKm, zones),
-      0,
-    ),
+    totalMinutes: trackable.reduce((sum, s) => sum + sessionEstimatedMinutes(s, zones), 0),
   }
 }
