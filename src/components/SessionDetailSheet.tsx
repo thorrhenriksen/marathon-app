@@ -22,6 +22,7 @@ import Modal from './Modal'
 import LogRunForm from './LogRunForm'
 import ExerciseDetailSheet from './ExerciseDetailSheet'
 import GuidedStrengthSession from './GuidedStrengthSession'
+import { effectiveStrengthExercises, exerciseDose, strengthSessionLabel } from '../lib/strengthBlocks'
 import { SESSION_TYPE_LABELS, paceGuidanceFor, racePaceFor } from './SessionCard'
 import { useGoalEngine } from '../lib/useGoalEngine'
 import { computeTrainingZones, resolveGoals, marathonVdot, PROVISIONAL_MARATHON_SECONDS } from '../lib/goalEngine'
@@ -50,7 +51,11 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
   const [moveDate, setMoveDate] = useState(session.date)
   const [moveError, setMoveError] = useState<string | null>(null)
   const [confirmingNotFeeling100, setConfirmingNotFeeling100] = useState(false)
-  const [exercises, setExercises] = useState<SessionExercise[]>(session.exercises ?? [])
+  const [storedExercises, setExercises] = useState<SessionExercise[]>(session.exercises ?? [])
+  // Plyos drop out when a knee/toe variant was used in the prior two weeks.
+  const exercises = allSessions
+    ? effectiveStrengthExercises({ ...session, exercises: storedExercises }, allSessions)
+    : storedExercises
   const [confirmingComplete, setConfirmingComplete] = useState(false)
   const [completionNote, setCompletionNote] = useState('')
   const [confirmingSwapToMobility, setConfirmingSwapToMobility] = useState(false)
@@ -118,7 +123,7 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
   }
 
   function handleToggleExercise(exerciseId: string) {
-    const updated = exercises.map((e) => (e.exerciseId === exerciseId ? { ...e, completed: !e.completed } : e))
+    const updated = storedExercises.map((e) => (e.exerciseId === exerciseId ? { ...e, completed: !e.completed } : e))
     setExercises(updated)
     db.sessions.update(session.id, { exercises: updated })
   }
@@ -183,7 +188,7 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-border bg-surface-inset p-3">
                 <p className="text-xs text-ink-faint">Session</p>
-                <p className="mt-1 text-lg font-semibold text-ink">Session {session.variant}</p>
+                <p className="mt-1 text-lg font-semibold text-ink">{strengthSessionLabel(session)}</p>
               </div>
               <div className="rounded-xl border border-border bg-surface-inset p-3">
                 <p className="text-xs text-ink-faint">Duration</p>
@@ -212,13 +217,19 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
                     >
                       <p className="text-sm font-medium text-ink">{exercise.name}</p>
                       <p className="text-xs text-ink-faint">
-                        {exercise.sets} x {exercise.reps ?? `${exercise.holdSeconds}s`}
+                        {exerciseDose(exercise)}
                       </p>
                       <p className="mt-1 text-xs text-ink-muted">{exercise.formCue}</p>
                     </button>
                   </li>
                 ))}
               </ul>
+              {session.strengthBlock && session.variant && (
+                <p className="mt-2 text-xs text-ink-faint">
+                  Double progression: once you hit the top of the rep range on every set at RPE ≤8, add load next
+                  time — then slow the tempo when the dumbbells max out.
+                </p>
+              )}
               {canAct && (
                 <button
                   onClick={handleStartGuidedSession}

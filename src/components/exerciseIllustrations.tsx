@@ -3,6 +3,7 @@
 // All strokes use currentColor so they follow the active theme.
 
 import type { ReactElement } from 'react'
+import { BLOCK_ILLUSTRATIONS } from './exerciseIllustrationsBlocks'
 
 interface IllustrationProps {
   className?: string
@@ -211,7 +212,7 @@ const ILLUSTRATION_BY_ID: Record<string, (props: IllustrationProps) => ReactElem
 }
 
 export function ExerciseIllustration({ exerciseId, className }: { exerciseId: string; className?: string }) {
-  const Illustration = ILLUSTRATION_BY_ID[exerciseId]
+  const Illustration = ILLUSTRATION_BY_ID[exerciseId] ?? BLOCK_ILLUSTRATIONS[exerciseId]
   if (!Illustration) return null
   return <Illustration className={className} />
 }

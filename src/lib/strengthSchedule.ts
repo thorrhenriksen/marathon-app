@@ -1,5 +1,7 @@
 // Generates the full 35-week strength/mobility session schedule, mirroring
-// the shape/conventions of generatePlan() in src/db/seed.ts.
+// the shape/conventions of generatePlan() in src/db/seed.ts. Weeks 1–5 keep
+// the original A/B tiered sessions (already history for the current plan);
+// weeks 6–35 come from the six-block periodization engine (strengthBlocks.ts).
 
 import { addDays } from './dates'
 import { weekStartDate } from '../db/seed'
@@ -12,6 +14,8 @@ import {
   tierForWeek,
   type StrengthTier,
 } from './strengthCatalog'
+import { buildStrengthSessionsForWeek, PERIODIZATION_START_WEEK, type StrengthWeekContext } from './strengthBlocks'
+import { GATE_10K_WEEKS, GATE_HALF_WEEKS } from './goalEngine'
 import type { Session, StrengthVariant } from '../types'
 
 const MONDAY_OFFSET = 0
@@ -32,6 +36,31 @@ function previousSundayDistanceKm(week: number): number | undefined {
   const sunday = previous?.sessions.find((s) => s.dayOffset === SUNDAY_OFFSET)
   if (!sunday || (sunday.type !== 'long' && sunday.type !== 'race')) return undefined
   return sunday.distanceKm
+}
+
+function inRange(week: number, [from, to]: [number, number]): boolean {
+  return week >= from && week <= to
+}
+
+/** Running context the periodization engine needs for one week, from the static plan. */
+export function strengthWeekContext(week: number): StrengthWeekContext {
+  const seed = findWeekSeed(week)
+  const weekStart = weekStartDate(week)
+  const runs = (seed?.sessions ?? []).map((s) => ({
+    week,
+    date: addDays(weekStart, s.dayOffset),
+    type: s.type,
+    plannedDistanceKm: s.distanceKm,
+  }))
+  const hasRace = runs.some((r) => r.type === 'race')
+  return {
+    week,
+    weekStart,
+    isCutback: seed?.isCutback ?? false,
+    isGateRaceWeek: hasRace && (inRange(week, GATE_10K_WEEKS) || inRange(week, GATE_HALF_WEEKS)),
+    runs,
+    previousSundayKm: previousSundayDistanceKm(week),
+  }
 }
 
 export function generateStrengthSessions(): Session[] {
@@ -82,6 +111,11 @@ export function generateStrengthSessions(): Session[] {
     const { week } = weekSeed
     const tier = tierForWeek(week)
 
+    if (week >= PERIODIZATION_START_WEEK) {
+      sessions.push(...buildStrengthSessionsForWeek(strengthWeekContext(week)))
+      continue
+    }
+
     if (week === RACE_WEEK) {
       placeSession(week, MONDAY_OFFSET, tier, { mobilityOnly: true })
       continue
@@ -105,4 +139,23 @@ export function generateStrengthSessions(): Session[] {
   }
 
   return sessions
+}
+
+/** The full (non-downgraded) planned version of a week's strength session,
+ *  used when an outcome or injury variant is reverted. Undefined for weeks
+ *  before the periodization, which keep the original tiered rebuild. */
+export function rebuildPlannedStrength(
+  week: number,
+  variant: StrengthVariant | undefined,
+): Pick<Session, 'description' | 'exercises' | 'estimatedMinutes' | 'strengthBlock'> | undefined {
+  if (week < PERIODIZATION_START_WEEK) return undefined
+  const ctx = { ...strengthWeekContext(week), previousSundayKm: undefined }
+  const match = buildStrengthSessionsForWeek(ctx).find((s) => s.variant === variant)
+  if (!match) return undefined
+  return {
+    description: match.description,
+    exercises: match.exercises,
+    estimatedMinutes: match.estimatedMinutes,
+    strengthBlock: match.strengthBlock,
+  }
 }

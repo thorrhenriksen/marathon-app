@@ -7,6 +7,7 @@ import { requestWakeLock, releaseWakeLock } from '../lib/wakeLock'
 import type { Session } from '../types'
 import { ExerciseIllustration } from './exerciseIllustrations'
 import { getCatalogEntry } from '../lib/strengthCatalog'
+import { exerciseDose } from '../lib/strengthBlocks'
 
 const DEFAULT_REST_SECONDS = 45
 
@@ -153,7 +154,7 @@ export default function GuidedStrengthSession({ session, onClose }: GuidedStreng
             <div className="rounded-xl border border-border bg-surface-inset p-3 text-center">
               <p className="text-xs text-ink-faint">Prescription</p>
               <p className="mt-1 text-lg font-semibold text-ink">
-                {currentExercise.sets} x {currentExercise.reps ?? `${currentExercise.holdSeconds}s hold`}
+                {exerciseDose(currentExercise)}
               </p>
             </div>
             {entry && entry.cues.length > 0 && (

@@ -8,6 +8,7 @@ import { sessionDotColor } from '../lib/sessionColors'
 import { useSessionDetail } from '../context/SessionDetailContext'
 import type { Session, SessionType, WeekMeta, TimeOff } from '../types'
 import SessionMarker from '../components/SessionMarker'
+import { strengthSessionLabel } from '../lib/strengthBlocks'
 import AdjustmentSummaryModal from '../components/AdjustmentSummaryModal'
 
 const SESSION_TYPE_LABELS: Record<SessionType, string> = {
@@ -194,12 +195,14 @@ function WeekCard({
                   <span className="w-14 shrink-0 text-xs font-medium text-ink-muted">
                     {SESSION_TYPE_LABELS[session.type]}
                   </span>
-                  <span className="flex-1 truncate text-xs text-ink-muted">
-                    {session.description}
+                  <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">
+                    {session.type === 'strength' && session.strengthBlock && session.exercises?.length
+                      ? session.exercises.map((e) => e.name).join(' · ')
+                      : session.description}
                     {presentation.note && <span className="text-ink-faint"> · {presentation.note}</span>}
                   </span>
                   {session.type === 'strength' ? (
-                    <span className="shrink-0 text-xs text-ink-faint">Session {session.variant}</span>
+                    <span className="shrink-0 text-xs text-ink-faint">{strengthSessionLabel(session)}</span>
                   ) : (
                     session.type !== 'rest' && (
                       <span className="shrink-0 text-xs text-ink-faint">{session.plannedDistanceKm} km</span>

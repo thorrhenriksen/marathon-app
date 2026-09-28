@@ -16,17 +16,12 @@ const settings: Settings = {
 describe('generateStrengthSessions', () => {
   const strengthSessions = generateStrengthSessions()
 
-  describe('cutback-week reduction', () => {
-    it('produces exactly one strength session in cutback weeks (22, 26, 31)', () => {
+  describe('cutback weeks', () => {
+    it('keeps two sessions in cutback weeks (22, 26, 31) with a set trimmed instead', () => {
       for (const week of [22, 26, 31]) {
         const weekSessions = strengthSessions.filter((s) => s.week === week)
-        expect(weekSessions.length).toBe(1)
+        expect(weekSessions.length).toBe(2)
       }
-    })
-
-    it('produces two strength sessions in a normal marathon-block week', () => {
-      const weekSessions = strengthSessions.filter((s) => s.week === 20)
-      expect(weekSessions.length).toBe(2)
     })
   })
 
@@ -36,7 +31,8 @@ describe('generateStrengthSessions', () => {
       // be downgraded to mobility-only.
       const week28Sessions = strengthSessions.filter((s) => s.week === 28).sort((a, b) => (a.date < b.date ? -1 : 1))
       const monday = week28Sessions[0]
-      expect(monday.status).toBe('downgraded-to-mobility')
+      expect(monday.status).toBe('planned')
+      expect(monday.description).toMatch(/mobility only/)
       expect(monday.exercises?.length).toBeGreaterThan(0)
       expect(monday.exercises?.every((e) => e.holdSeconds !== undefined)).toBe(true)
     })

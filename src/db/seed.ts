@@ -87,6 +87,8 @@ export async function seedDatabaseIfEmpty(): Promise<void> {
         units: 'km',
         hasRequestedPersistence: false,
         theme: 'system',
+        // Freshly seeded sessions already come from the periodized generator.
+        strengthPlanVersion: 2,
       })
     }
   })

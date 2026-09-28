@@ -7,6 +7,8 @@ import { describe, it, expect } from 'vitest'
 import { computeAchievements, computeStreaks, computeTotalDistanceKm } from '../lib/achievements'
 import { computeCoinBalance, initializeCoinEconomy } from '../lib/coins'
 import { computeGoalEngineState } from '../lib/goalEngine'
+import { reconcileStrengthPlan } from '../lib/strengthMigration'
+import { generateStrengthSessions } from '../lib/strengthSchedule'
 import type { Goal, Run, Session, Settings, TimeOff, TimeOffAdjustment, WeekMeta } from '../types'
 
 const weeks: WeekMeta[] = [
@@ -196,5 +198,19 @@ describe('regression fixture: additive-only data survives a reload', () => {
     expect(edited.zones.easyPaceMinSecPerKm).toBe(after.zones.easyPaceMinSecPerKm)
     expect(edited.zones.tempoPaceMinSecPerKm).toBe(after.zones.tempoPaceMinSecPerKm)
     expect(edited.zones.marathonPaceSecPerKm).toBe(after.zones.marathonPaceSecPerKm)
+  })
+
+  it('moves onto the periodized strength plan without touching any outcome or derived achievement', () => {
+    const { deleteIds, add } = reconcileStrengthPlan(sessions, generateStrengthSessions(), today)
+    const deleted = sessions.filter((s) => deleteIds.includes(s.id))
+    expect(deleted.every((s) => s.type === 'strength' && s.status === 'planned' && s.date >= today && s.week >= 6)).toBe(true)
+    const migrated = [...sessions.filter((s) => !deleteIds.includes(s.id)), ...add]
+    // Every session with an outcome survives unchanged.
+    for (const s of sessions.filter((x) => x.status !== 'planned' || x.date < today)) {
+      expect(migrated.find((m) => m.id === s.id)).toEqual(s)
+    }
+    const before = computeAchievements({ sessions, runs, weeks, timeOffEntries: timeOff, today })
+    const after = computeAchievements({ sessions: roundTrip(migrated), runs, weeks, timeOffEntries: timeOff, today })
+    expect(after).toEqual(before)
   })
 })

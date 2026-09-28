@@ -2,6 +2,7 @@ import { estimateSessionDurationMinutes, formatPace, formatPaceRange } from '../
 import { todayISO } from '../lib/dates'
 import { getDisplayStatus, DISPLAY_STATUS_STYLE } from '../lib/sessionStatus'
 import type { CardAccentUnlock } from '../lib/achievements'
+import { strengthSessionLabel } from '../lib/strengthBlocks'
 import { useSessionDetail } from '../context/SessionDetailContext'
 import type { PaceZones, Session, SessionType } from '../types'
 
@@ -78,7 +79,7 @@ export default function SessionCard({ session, zones, onLog, cardAccent }: Sessi
             {session.type === 'rest'
               ? 'Rest day'
               : session.type === 'strength'
-                ? `Session ${session.variant}`
+                ? strengthSessionLabel(session)
                 : `${session.plannedDistanceKm} km`}
           </p>
         </div>

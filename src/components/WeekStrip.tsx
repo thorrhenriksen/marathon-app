@@ -128,7 +128,7 @@ export default function WeekStrip({
                   <span className="mt-1 text-[11px] text-ink-muted">
                     {session
                       ? session.type === 'strength'
-                        ? session.variant
+                        ? (session.variant ?? 'Act')
                         : session.type !== 'rest'
                           ? `${session.plannedDistanceKm}k`
                           : ''

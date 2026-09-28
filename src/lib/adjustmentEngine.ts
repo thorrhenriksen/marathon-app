@@ -1,5 +1,6 @@
 import type { Session, SessionType, Settings, TimeOff, WeekMeta } from '../types'
 import { addDays, daysBetween, getWeekdayIndex, startOfWeek } from './dates'
+import { rebuildPlannedStrength } from './strengthSchedule'
 import {
   buildMobilityOnlyExercises,
   buildSessionExercises,
@@ -320,10 +321,13 @@ export function resetSessionOutcome(session: Session): Session {
   if (session.type !== 'strength') return base
 
   const variant = session.variant ?? 'A'
-  if (hasMobilityOnlyExercises(session)) {
+  if (hasMobilityOnlyExercises(session) || session.injuryVariant) {
+    const { injuryVariant: _injuryVariant, ...withoutVariant } = base
+    const rebuilt = rebuildPlannedStrength(session.week, session.variant)
+    if (rebuilt) return { ...withoutVariant, ...rebuilt }
     const tier = tierForWeek(session.week)
     return {
-      ...base,
+      ...withoutVariant,
       description: `Strength — Session ${variant}`,
       exercises: buildSessionExercises(variant, tier),
       estimatedMinutes: estimatedMinutesForTier(tier),

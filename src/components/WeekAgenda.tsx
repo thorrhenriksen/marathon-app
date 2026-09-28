@@ -9,6 +9,7 @@ import { sessionBorderColor } from '../lib/sessionColors'
 import { PHASE_LABELS } from '../db/weekPlan'
 import { findCurrentWeekNumber, clampWeek, swipeDirection, computeWeekTotals, sessionEstimatedMinutes } from '../lib/weekAgenda'
 import StreakChip from './StreakChip'
+import { strengthSessionLabel } from '../lib/strengthBlocks'
 import { useSessionDetail } from '../context/SessionDetailContext'
 import type { PaceZones, Run, Session, SessionType, WeekMeta } from '../types'
 
@@ -63,7 +64,7 @@ function DayCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium text-ink">
-            {session.type === 'strength' ? `Strength ${session.variant ?? ''}` : SESSION_TYPE_LABELS[session.type]}
+            {session.type === 'strength' ? `Strength · ${strengthSessionLabel(session)}` : SESSION_TYPE_LABELS[session.type]}
           </span>
           {style.icon && (
             <span

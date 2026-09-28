@@ -22,7 +22,7 @@ export type SessionStatus =
 
 export type StrengthVariant = 'A' | 'B'
 
-export type StrengthEquipment = 'bodyweight' | 'dumbbell' | 'pullup-bar' | 'mat'
+export type StrengthEquipment = 'bodyweight' | 'dumbbell' | 'pullup-bar' | 'mat' | 'chair'
 
 export interface StrengthExerciseCatalogEntry {
   id: string
@@ -48,7 +48,28 @@ export interface SessionExercise {
   holdSeconds?: number
   formCue: string
   completed: boolean
+  /** Human-readable prescription (e.g. "3 × 8–12", "3 × 8/side · 3-1-1
+   *  tempo"). When present it's shown instead of sets × reps/hold. */
+  prescription?: string
+  /** Movement slot, used by injury-variant substitution. */
+  slot?: StrengthSlot
+  /** Plyometric work — dropped when a knee/toe variant was used recently. */
+  isPlyo?: boolean
 }
+
+export type StrengthSlot =
+  | 'squat'
+  | 'hinge'
+  | 'step'
+  | 'hamstring'
+  | 'calf'
+  | 'push'
+  | 'pull'
+  | 'core'
+  | 'adductor'
+  | 'abductor'
+  | 'plyo'
+  | 'activation'
 
 export interface Session {
   id: string
@@ -70,6 +91,8 @@ export interface Session {
   exercises?: SessionExercise[]
   estimatedMinutes?: number
   completionNote?: string
+  /** Periodization block (1–6) a strength session was generated from. */
+  strengthBlock?: number
   /** Injury-variant substitution applied to a strength session (tracked for
    *  the goal-engine gate and the "smart call" achievement). */
   injuryVariant?: InjuryVariant
@@ -170,6 +193,9 @@ export interface Settings {
   /** Set once the coin economy has grandfathered prior unlocks and credited
    *  previously-earned achievements. Guards the one-time initialization. */
   coinEconomyInitializedAt?: string
+  /** Version of the strength plan generator the stored sessions follow;
+   *  2 = six-block periodization from week 6. */
+  strengthPlanVersion?: number
   /** Selected celebration animation (a shop cosmetic). Defaults to 'classic'. */
   celebrationStyle?: CelebrationStyle
   /** Selected calendar session-marker style (a shop cosmetic). Defaults to 'dots'. */

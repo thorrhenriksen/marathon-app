@@ -1,8 +1,10 @@
 // Static strength/mobility exercise catalog and phase-based progression tiers.
 // No Dexie table needed — same pattern as SESSION_TIPS in sessionTips.ts.
-// Equipment is a hard constraint: only a yoga mat, two 12.5kg dumbbells, and a
-// pull-up bar are ever referenced.
+// Equipment is a hard constraint: only a yoga mat, two 12.5kg dumbbells, a
+// pull-up bar, and a chair/step/sofa (Copenhagens, step-downs, Nordic
+// anchoring) are ever referenced.
 
+import { BLOCK_EXERCISES } from './strengthCatalogBlocks'
 import type { SessionExercise, StrengthExerciseCatalogEntry, StrengthVariant } from '../types'
 
 export type StrengthTier = 'T1' | 'T2' | 'T3' | 'T4' | 'T5'
@@ -226,7 +228,11 @@ export const STRENGTH_EXERCISES: StrengthExerciseCatalogEntry[] = [
   },
 ]
 
-const EXERCISE_BY_ID = new Map(STRENGTH_EXERCISES.map((e) => [e.id, e]))
+/** Every exercise the app can prescribe: the original A/B catalog plus the
+ *  periodization blocks' additions. */
+export const ALL_EXERCISES: StrengthExerciseCatalogEntry[] = [...STRENGTH_EXERCISES, ...BLOCK_EXERCISES]
+
+const EXERCISE_BY_ID = new Map(ALL_EXERCISES.map((e) => [e.id, e]))
 
 export function getCatalogEntry(exerciseId: string): StrengthExerciseCatalogEntry | undefined {
   return EXERCISE_BY_ID.get(exerciseId)

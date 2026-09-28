@@ -186,7 +186,10 @@ export function computeRecoveryState(
 
   if (band !== 'recovered' && todaysScheduledSession && todaysScheduledSession.type !== 'rest' && !wasHarderThanPlanned) {
     band = 'recovering'
-    reasoning = `Today's ${todaysScheduledSession.type} run is on plan — keep it genuinely easy and you'll be fine.`
+    reasoning =
+      todaysScheduledSession.type === 'strength'
+        ? "Today's strength session is on plan — keep the effort controlled and you'll be fine."
+        : `Today's ${todaysScheduledSession.type} run is on plan — keep it genuinely easy and you'll be fine.`
   }
 
   return { band, reasoning, nextQualityDate }

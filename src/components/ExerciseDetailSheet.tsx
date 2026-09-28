@@ -1,5 +1,6 @@
 import { getCatalogEntry } from '../lib/strengthCatalog'
 import type { SessionExercise } from '../types'
+import { exerciseDose } from '../lib/strengthBlocks'
 import BottomSheet from './BottomSheet'
 import { ExerciseIllustration } from './exerciseIllustrations'
 
@@ -26,7 +27,7 @@ export default function ExerciseDetailSheet({ exercise, onClose }: ExerciseDetai
         <div className="rounded-xl border border-border bg-surface-inset p-3 text-center">
           <p className="text-xs text-ink-faint">Prescription</p>
           <p className="mt-1 text-lg font-semibold text-ink">
-            {exercise.sets} x {exercise.reps ?? `${exercise.holdSeconds}s hold`}
+            {exerciseDose(exercise)}
           </p>
         </div>
 

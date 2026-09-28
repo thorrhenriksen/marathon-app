@@ -8,6 +8,7 @@ import { seedDatabaseIfEmpty } from './db/seed'
 import { runWeekRebaseMigration } from './db/weekRebaseMigration'
 import { runCoinEconomyMigration } from './db/coinEconomyMigration'
 import { runGoalEngineMigration } from './db/goalEngineMigration'
+import { runStrengthPeriodizationMigration } from './db/strengthPeriodizationMigration'
 import { requestPersistentStorage } from './lib/storage'
 import { SessionDetailProvider } from './context/SessionDetailContext'
 import UpdateBanner from './components/UpdateBanner'
@@ -92,6 +93,7 @@ function App() {
       await seedDatabaseIfEmpty()
       await runCoinEconomyMigration()
       await runGoalEngineMigration()
+      await runStrengthPeriodizationMigration()
       await requestPersistentStorage()
       if (!cancelled) setReady(true)
     }
