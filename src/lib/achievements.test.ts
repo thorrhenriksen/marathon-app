@@ -223,3 +223,17 @@ describe('computeTaperDisciplineWeeks', () => {
     expect(computeTaperDisciplineWeeks(overRuns, weeks, today)).toEqual([])
   })
 })
+
+describe('computeSmartCallCount with injury variants', () => {
+  it('counts each variant session once, whether handled or pre-planned', async () => {
+    const { computeSmartCallCount } = await import('./achievements')
+    const base = { week: 6, type: 'strength' as const, plannedDistanceKm: 0, description: '', exercises: [] }
+    expect(
+      computeSmartCallCount([
+        { ...base, id: 'a', date: '2026-09-28', status: 'handled', injuryVariant: 'sore-knees-toe' },
+        { ...base, id: 'b', date: '2026-09-30', status: 'planned', injuryVariant: 'sore-knees-toe' },
+        { ...base, id: 'c', date: '2026-09-21', status: 'completed' },
+      ]),
+    ).toBe(2)
+  })
+})

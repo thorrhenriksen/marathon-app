@@ -289,8 +289,9 @@ export function applyNotFeeling100(session: Session): Session {
 /** "Swap to mobility only" quick-adjust for strength sessions: reduces the
  *  session to just its 5-min mobility block. */
 export function applySwapToMobilityOnly(session: Session): Session {
+  const { injuryVariant: _injuryVariant, ...rest } = session
   return {
-    ...session,
+    ...rest,
     exercises: buildMobilityOnlyExercises(session.variant ?? 'A'),
     status: 'downgraded-to-mobility',
   }

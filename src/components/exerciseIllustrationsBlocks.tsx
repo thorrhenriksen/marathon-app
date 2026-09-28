@@ -260,6 +260,64 @@ export const GluteBridge = (p: IllustrationProps) => (
   </Svg>
 )
 
+export const WallSit = (p: IllustrationProps) => (
+  <Svg {...p}>
+    <path d="M22 8 L22 90" strokeWidth={2} opacity={0.6} />
+    <circle cx="32" cy="22" r="7" />
+    <path d="M28 29 L28 56 L52 66 L52 88" />
+    <path d="M30 38 L44 46" />
+    <Floor />
+  </Svg>
+)
+
+export const HipAbductionClamshell = (p: IllustrationProps) => (
+  <Svg {...p}>
+    <circle cx="16" cy="76" r="7" />
+    <path d="M23 78 L50 80 L66 70 L82 80" />
+    <path d="M50 80 L62 58 L80 66" />
+    <path d="M30 80 L28 88" />
+    <Floor />
+  </Svg>
+)
+
+export const KneePushUp = (p: IllustrationProps) => (
+  <Svg {...p}>
+    <circle cx="18" cy="60" r="7" />
+    <path d="M25 63 L66 84 L86 84" />
+    <path d="M32 66 L30 90" />
+    <Floor />
+  </Svg>
+)
+
+export const SeatedCalfRaiseHalf = (p: IllustrationProps) => (
+  <Svg {...p}>
+    <circle cx="36" cy="22" r="8" />
+    <path d="M36 30 L36 56 L62 56 L62 82 L72 82" />
+    <rect x="22" y="58" width="22" height="30" rx="2" />
+    <path d="M80 70 L80 80 M76 74 L80 70 L84 74" strokeWidth={2} />
+    <Floor />
+  </Svg>
+)
+
+export const PlankKnees = (p: IllustrationProps) => (
+  <Svg {...p}>
+    <circle cx="20" cy="62" r="7" />
+    <path d="M27 66 L66 84 L86 86" />
+    <path d="M32 68 L32 84 L46 84" />
+    <Floor />
+  </Svg>
+)
+
+export const SidePlankKnees = (p: IllustrationProps) => (
+  <Svg {...p}>
+    <circle cx="18" cy="56" r="7" />
+    <path d="M25 58 L62 70 L80 86" />
+    <path d="M30 60 L30 80" />
+    <path d="M40 62 L52 48" />
+    <Floor />
+  </Svg>
+)
+
 export const BLOCK_ILLUSTRATIONS: Record<string, (props: IllustrationProps) => ReactElement> = {
   'box-goblet-squat': BoxGobletSquat,
   'db-rdl': DbRdl,
@@ -285,4 +343,10 @@ export const BLOCK_ILLUSTRATIONS: Record<string, (props: IllustrationProps) => R
   'plyo-primer': PlyoPrimer,
   'plyo-power': PlyoPower,
   'glute-bridge': GluteBridge,
+  'wall-sit': WallSit,
+  'hip-abduction-clamshell': HipAbductionClamshell,
+  'knee-push-up': KneePushUp,
+  'seated-calf-raise-half': SeatedCalfRaiseHalf,
+  'plank-knees': PlankKnees,
+  'side-plank-knees': SidePlankKnees,
 }

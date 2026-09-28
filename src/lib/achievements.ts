@@ -206,12 +206,17 @@ export function computeRestDaysHonoredCount(sessions: Session[], weeks: WeekMeta
   return count
 }
 
-/** Number of times a "Not feeling 100%" or "Swap to mobility only" quick-adjust
- *  has been used — these produce 'handled' (non-rest) or 'downgraded-to-mobility'
+/** Number of times a "Not feeling 100%", mobility-only, or injury-variant
+ *  adjustment has been used — these produce 'handled' (non-rest) or 'downgraded-to-mobility'
  *  statuses, and are a positive recovery signal, never a penalty. */
 export function computeSmartCallCount(sessions: Session[]): number {
-  return sessions.filter((s) => s.status === 'downgraded-to-mobility' || (s.status === 'handled' && s.type !== 'rest'))
-    .length
+  return sessions.filter(
+    (s) =>
+      s.status === 'downgraded-to-mobility' ||
+      (s.status === 'handled' && s.type !== 'rest') ||
+      // An injury variant chosen for a sore knee/toe is the same kind of call.
+      !!s.injuryVariant,
+  ).length
 }
 
 /** Week numbers of taper weeks (week >= 33) completed without exceeding their
@@ -410,7 +415,7 @@ export function computeAchievements(input: ComputeAchievementsInput): Achievemen
     id: 'smart-call',
     category: 'recovery',
     title: 'Smart call',
-    condition: 'Use "Not feeling 100%" or "Swap to mobility only" when you need to',
+    condition: 'Use "Not feeling 100%", mobility only, or an injury variant when you need to',
     unlocked: smartCallCount > 0,
     progress: smartCallCount > 0 ? `${smartCallCount} time(s)` : undefined,
   })

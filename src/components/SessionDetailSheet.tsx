@@ -15,8 +15,9 @@ import { isNearLongestLongRun, pickTips } from '../lib/sessionTips'
 import { moveSessionToDate, applyNotFeeling100, applySwapToMobilityOnly } from '../lib/adjustmentEngine'
 import { revertSessionToPlanned } from '../db/runs'
 import { completeStrengthSession } from '../lib/completeStrengthSession'
+import { applyInjuryVariant, INJURY_VARIANT_LABELS, restoreNormalStrength } from '../lib/injuryVariants'
 import { primeAudioCue } from '../lib/audioCue'
-import type { Session, SessionExercise } from '../types'
+import type { InjuryVariant, Session, SessionExercise } from '../types'
 import BottomSheet from './BottomSheet'
 import Modal from './Modal'
 import LogRunForm from './LogRunForm'
@@ -30,6 +31,27 @@ import { computeTrainingZones, resolveGoals, marathonVdot, PROVISIONAL_MARATHON_
 // Only used for the first render tick while the goal engine loads.
 const FALLBACK_VDOT = marathonVdot(PROVISIONAL_MARATHON_SECONDS)
 const FALLBACK_ZONES = computeTrainingZones(FALLBACK_VDOT, resolveGoals(undefined, FALLBACK_VDOT), false)
+
+const INJURY_VARIANT_DETAIL: Record<InjuryVariant, string> = {
+  'sore-knees': 'Wall sits, bilateral RDLs, hip abduction + clamshells, bridges; no plyos; short-lever Copenhagen.',
+  'sore-toe': 'No toes-tucked or toe-extension work: knee push-ups and planks, half-height seated calf raises; no plyos.',
+  'sore-knees-toe': 'Both of the above combined.',
+}
+
+function ChangeOption({ title, detail, active, onClick }: { title: string; detail: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full rounded-xl border p-3 text-left ${active ? 'border-strength bg-strength/10' : 'border-border active:bg-surface-inset'}`}
+    >
+      <p className="text-sm font-medium text-ink">
+        {title}
+        {active && <span className="ml-2 text-xs text-strength">Current</span>}
+      </p>
+      <p className="mt-0.5 text-xs text-ink-muted">{detail}</p>
+    </button>
+  )
+}
 
 interface SessionDetailSheetProps {
   session: Session
@@ -58,7 +80,7 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
     : storedExercises
   const [confirmingComplete, setConfirmingComplete] = useState(false)
   const [completionNote, setCompletionNote] = useState('')
-  const [confirmingSwapToMobility, setConfirmingSwapToMobility] = useState(false)
+  const [changingStrength, setChangingStrength] = useState(false)
   const [confirmingChangeOutcome, setConfirmingChangeOutcome] = useState(false)
   const [detailExercise, setDetailExercise] = useState<SessionExercise | null>(null)
   const [guiding, setGuiding] = useState(false)
@@ -141,6 +163,16 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
   async function handleSwapToMobilityOnly() {
     const updated = applySwapToMobilityOnly(session)
     await db.sessions.put(updated)
+    onClose()
+  }
+
+  async function handleRestoreNormal() {
+    await db.sessions.put(restoreNormalStrength(session))
+    onClose()
+  }
+
+  async function handleApplyVariant(variant: InjuryVariant) {
+    await db.sessions.put(applyInjuryVariant(session, variant, todayISO()))
     onClose()
   }
 
@@ -340,7 +372,7 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
                   </button>
                 )}
 
-                {canMissThisSession && (
+                {canMissThisSession && session.type !== 'strength' && (
                   <button
                     onClick={handleMarkMissed}
                     className="w-full rounded-xl border border-danger/40 py-3 text-sm font-medium text-danger"
@@ -423,34 +455,12 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
                 )}
 
                 {session.type === 'strength' ? (
-                  !confirmingSwapToMobility ? (
-                    <button
-                      onClick={() => setConfirmingSwapToMobility(true)}
-                      className="w-full rounded-xl border border-border py-3 text-sm font-medium text-ink"
-                    >
-                      Swap to mobility only
-                    </button>
-                  ) : (
-                    <div className="rounded-xl border border-strength/40 bg-strength/10 p-3">
-                      <p className="text-sm text-strength">
-                        This will reduce today's session to the 5-min mobility block only. Confirm?
-                      </p>
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          onClick={() => setConfirmingSwapToMobility(false)}
-                          className="flex-1 rounded-lg border border-border py-2 text-sm text-ink-muted"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleSwapToMobilityOnly}
-                          className="flex-1 rounded-lg bg-strength py-2 text-sm font-medium text-accent-fg"
-                        >
-                          Confirm
-                        </button>
-                      </div>
-                    </div>
-                  )
+                  <button
+                    onClick={() => setChangingStrength(true)}
+                    className="w-full rounded-xl border border-border py-3 text-sm font-medium text-ink"
+                  >
+                    Change…
+                  </button>
                 ) : !confirmingNotFeeling100 ? (
                   <button
                     onClick={() => setConfirmingNotFeeling100(true)}
@@ -526,6 +536,47 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
             }}
             onCancel={() => setLogging(false)}
           />
+        </Modal>
+      )}
+
+      {changingStrength && (
+        <Modal title="Change this session" onClose={() => setChangingStrength(false)}>
+          <div className="flex flex-col gap-2">
+            {(session.injuryVariant || session.status === 'downgraded-to-mobility') && session.strengthBlock !== undefined && (
+              <ChangeOption
+                title="Normal session"
+                detail="Back to this week's full block session."
+                active={false}
+                onClick={handleRestoreNormal}
+              />
+            )}
+            <ChangeOption
+              title="Mobility only"
+              detail="Just the 5-minute mobility block."
+              active={session.status === 'downgraded-to-mobility' && !session.injuryVariant}
+              onClick={handleSwapToMobilityOnly}
+            />
+            {(Object.keys(INJURY_VARIANT_LABELS) as InjuryVariant[]).map((v) => (
+              <ChangeOption
+                key={v}
+                title={INJURY_VARIANT_LABELS[v]}
+                detail={INJURY_VARIANT_DETAIL[v]}
+                active={session.injuryVariant === v}
+                onClick={() => handleApplyVariant(v)}
+              />
+            ))}
+            {canMissThisSession && (
+              <button
+                onClick={handleMarkMissed}
+                className="mt-1 w-full rounded-xl border border-danger/40 py-3 text-sm font-medium text-danger"
+              >
+                Mark missed
+              </button>
+            )}
+            <p className="mt-1 text-xs text-ink-faint">
+              Variants count as a handled session — never a miss. You can still do and complete the session afterwards.
+            </p>
+          </div>
         </Modal>
       )}
 

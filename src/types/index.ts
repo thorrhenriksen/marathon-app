@@ -196,6 +196,8 @@ export interface Settings {
   /** Version of the strength plan generator the stored sessions follow;
    *  2 = six-block periodization from week 6. */
   strengthPlanVersion?: number
+  /** Set once the one-off week-6 "sore knees + toe" conversion has run. */
+  week6InjuryVariantAppliedAt?: string
   /** Selected celebration animation (a shop cosmetic). Defaults to 'classic'. */
   celebrationStyle?: CelebrationStyle
   /** Selected calendar session-marker style (a shop cosmetic). Defaults to 'dots'. */
