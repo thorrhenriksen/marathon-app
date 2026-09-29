@@ -119,6 +119,14 @@ describe('canChangeOutcome', () => {
     expect(canChangeOutcome(makeSession({ status: 'moved', date: '2026-09-01' }), today)).toBe(false)
   })
 
+  it('is true for a completed session dated in the future (done ahead of schedule)', () => {
+    expect(canChangeOutcome(makeSession({ status: 'completed', date: '2026-09-05' }), today)).toBe(true)
+  })
+
+  it.each(['handled', 'skipped'] as const)('is still false for a future session with status %s', (status) => {
+    expect(canChangeOutcome(makeSession({ status, date: '2026-09-10' }), today)).toBe(false)
+  })
+
   it('is false for a future session, even one already downgraded-to-mobility by plan generation', () => {
     expect(canChangeOutcome(makeSession({ status: 'downgraded-to-mobility', date: '2026-09-10' }), today)).toBe(
       false,

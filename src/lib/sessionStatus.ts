@@ -40,8 +40,12 @@ export function canMarkMissed(session: Session, today: string): boolean {
 /** True for any past or current session whose status represents a resolved
  *  outcome (completed, missed, handled, downgraded-to-mobility, or skipped)
  *  — the only cases where "Change outcome" makes sense. A 'planned' session
- *  has nothing to change yet, and a 'moved' session is still unresolved. */
+ *  has nothing to change yet, and a 'moved' session is still unresolved.
+ *  A completed session can always be reverted, even when dated in the
+ *  future (e.g. a strength session done a day early): completion is only
+ *  ever the user's own action, unlike future statuses the plan may set. */
 export function canChangeOutcome(session: Session, today: string): boolean {
+  if (session.status === 'completed') return true
   return session.date <= today && session.status !== 'planned' && session.status !== 'moved'
 }
 
