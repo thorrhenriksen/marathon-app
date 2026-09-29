@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
+import SessionFormatToggle from '../components/SessionFormatToggle'
+import { DEFAULT_CIRCUIT_REST_SECONDS, DEFAULT_REST_SECONDS, DEFAULT_SESSION_FORMAT } from '../lib/guidedPlan'
 import { formatDisplayDate, todayISO } from '../lib/dates'
 import { isStoragePersisted } from '../lib/storage'
 import { computeAdjustment, type AdjustmentPreview } from '../lib/adjustmentEngine'
@@ -451,19 +453,27 @@ function PreferredDaysSection() {
   )
 }
 
-const DEFAULT_REST_TIMER_SECONDS = 45
-
 function GuidedSessionPreferencesSection() {
   const settings = useLiveQuery(() => db.settings.get('settings'), [])
   if (!settings) return null
 
-  const restTimerSeconds = settings.restTimerSeconds ?? DEFAULT_REST_TIMER_SECONDS
+  const restTimerSeconds = settings.restTimerSeconds ?? DEFAULT_REST_SECONDS
+  const circuitRestSeconds = settings.circuitRestSeconds ?? DEFAULT_CIRCUIT_REST_SECONDS
+  const sessionFormat = settings.strengthSessionFormat ?? DEFAULT_SESSION_FORMAT
   const audioCueEnabled = settings.audioCueEnabled ?? true
   const wakeLockEnabled = settings.wakeLockEnabled ?? true
 
   return (
     <SectionCard title="Guided strength session">
       <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm text-ink-muted">Default format</span>
+          <SessionFormatToggle
+            value={sessionFormat}
+            onChange={(format) => db.settings.update('settings', { strengthSessionFormat: format })}
+          />
+        </div>
+
         <div>
           <label className="mb-1 block text-xs text-ink-faint">Rest timer (seconds)</label>
           <input
@@ -472,6 +482,19 @@ function GuidedSessionPreferencesSection() {
             step={5}
             value={restTimerSeconds}
             onChange={(e) => db.settings.update('settings', { restTimerSeconds: Number(e.target.value) || 0 })}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-ink-faint">Between exercises in straight sets, and between circuit rounds.</p>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs text-ink-faint">Circuit rest between exercises (seconds)</label>
+          <input
+            type="number"
+            min={0}
+            step={5}
+            value={circuitRestSeconds}
+            onChange={(e) => db.settings.update('settings', { circuitRestSeconds: Number(e.target.value) || 0 })}
             className={inputClass}
           />
         </div>

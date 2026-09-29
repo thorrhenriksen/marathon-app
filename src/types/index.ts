@@ -97,7 +97,24 @@ export interface Session {
    *  the goal-engine gate and the "smart call" achievement). */
   injuryVariant?: InjuryVariant
   /** Resume point for guided mode — persisted so an app kill mid-workout can resume. */
-  guidedProgress?: { currentExerciseIndex: number; completedExerciseIds: string[] }
+  guidedProgress?: GuidedProgress
+}
+
+export type SessionFormat = 'straight' | 'circuit'
+
+/** Guided-mode resume point. The format/step/round/completedSets fields are
+ *  absent on progress saved before circuit mode existed (straight sets). */
+export interface GuidedProgress {
+  currentExerciseIndex: number
+  completedExerciseIds: string[]
+  format?: SessionFormat
+  /** Number of guided steps completed (a step is one set in circuit mode,
+   *  one whole exercise in straight sets). */
+  stepIndex?: number
+  /** Circuit round of the next step (0 for the primer / straight sets). */
+  round?: number
+  /** Sets completed per exercise id. */
+  completedSets?: Record<string, number>
 }
 
 export type InjuryVariant = 'sore-knees' | 'sore-toe' | 'sore-knees-toe'
@@ -180,6 +197,10 @@ export interface Settings {
   progressTab?: 'statistics' | 'achievements'
   /** Guided strength session rest-timer duration, in seconds. Defaults to 45. */
   restTimerSeconds?: number
+  /** Rest between exercises within a circuit round, in seconds. Defaults to 20. */
+  circuitRestSeconds?: number
+  /** Default guided strength session format. Defaults to 'straight'. */
+  strengthSessionFormat?: SessionFormat
   /** Whether guided mode plays an audio cue at the end of the rest timer. Defaults to true. */
   audioCueEnabled?: boolean
   /** Whether guided mode attempts to keep the screen awake. Defaults to true. */

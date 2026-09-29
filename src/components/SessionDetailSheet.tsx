@@ -17,12 +17,14 @@ import { revertSessionToPlanned } from '../db/runs'
 import { completeStrengthSession } from '../lib/completeStrengthSession'
 import { applyInjuryVariant, INJURY_VARIANT_LABELS, restoreNormalStrength } from '../lib/injuryVariants'
 import { primeAudioCue } from '../lib/audioCue'
-import type { InjuryVariant, Session, SessionExercise } from '../types'
+import type { InjuryVariant, Session, SessionExercise, SessionFormat } from '../types'
 import BottomSheet from './BottomSheet'
 import Modal from './Modal'
 import LogRunForm from './LogRunForm'
 import ExerciseDetailSheet from './ExerciseDetailSheet'
 import GuidedStrengthSession from './GuidedStrengthSession'
+import SessionFormatToggle from './SessionFormatToggle'
+import { DEFAULT_SESSION_FORMAT, SESSION_FORMAT_LABELS } from '../lib/guidedPlan'
 import { effectiveStrengthExercises, exerciseDose, strengthSessionLabel } from '../lib/strengthBlocks'
 import { SESSION_TYPE_LABELS, paceGuidanceFor, racePaceFor } from './SessionCard'
 import { useGoalEngine } from '../lib/useGoalEngine'
@@ -60,6 +62,7 @@ interface SessionDetailSheetProps {
 
 export default function SessionDetailSheet({ session, onClose }: SessionDetailSheetProps) {
   const engine = useGoalEngine()
+  const settings = useLiveQuery(() => db.settings.get('settings'), [])
   const weekMeta = useLiveQuery(() => db.weeks.get(session.week), [session.week])
   const allSessions = useLiveQuery(() => db.sessions.toArray(), [])
   const runs = useLiveQuery(() => db.runs.toArray(), [])
@@ -84,6 +87,11 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
   const [confirmingChangeOutcome, setConfirmingChangeOutcome] = useState(false)
   const [detailExercise, setDetailExercise] = useState<SessionExercise | null>(null)
   const [guiding, setGuiding] = useState(false)
+  // Once guided mode has saved progress the format is locked to it; until
+  // then the toggle picks the format and remembers it as the default.
+  const progressFormat = session.guidedProgress ? (session.guidedProgress.format ?? 'straight') : undefined
+  const sessionFormat: SessionFormat = progressFormat ?? settings?.strengthSessionFormat ?? DEFAULT_SESSION_FORMAT
+  const completedSets = session.guidedProgress?.completedSets ?? {}
 
   const zones = engine?.zones ?? FALLBACK_ZONES
   const estimatedMinutes = estimateSessionDurationMinutes(session.plannedDistanceKm, zones)
@@ -155,6 +163,10 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
     onClose()
   }
 
+  function handleChangeFormat(format: SessionFormat) {
+    db.settings.update('settings', { strengthSessionFormat: format })
+  }
+
   function handleStartGuidedSession() {
     primeAudioCue()
     setGuiding(true)
@@ -194,7 +206,16 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
       <BottomSheet onClose={onClose}>
         <div className="flex flex-col gap-5">
           <div>
-            <p className="text-xs uppercase tracking-wide text-ink-faint">{SESSION_TYPE_LABELS[session.type]}</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs uppercase tracking-wide text-ink-faint">{SESSION_TYPE_LABELS[session.type]}</p>
+              {session.type === 'strength' && canAct && (
+                progressFormat ? (
+                  <span className="text-xs text-ink-faint">{SESSION_FORMAT_LABELS[progressFormat]} · in progress</span>
+                ) : (
+                  <SessionFormatToggle value={sessionFormat} onChange={handleChangeFormat} />
+                )
+              )}
+            </div>
             <h2 className="mt-1 text-xl font-semibold text-ink">{formatDisplayDateLong(session.date)}</h2>
             {weekMeta && (
               <p className="mt-1 text-sm text-ink-faint">
@@ -250,6 +271,11 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
                       <p className="text-sm font-medium text-ink">{exercise.name}</p>
                       <p className="text-xs text-ink-faint">
                         {exerciseDose(exercise)}
+                        {!exercise.completed && (completedSets[exercise.exerciseId] ?? 0) > 0 && (
+                          <span className="ml-2 text-strength">
+                            {completedSets[exercise.exerciseId]}/{exercise.sets} sets
+                          </span>
+                        )}
                       </p>
                       <p className="mt-1 text-xs text-ink-muted">{exercise.formCue}</p>
                     </button>
@@ -587,6 +613,7 @@ export default function SessionDetailSheet({ session, onClose }: SessionDetailSh
       {guiding && (
         <GuidedStrengthSession
           session={{ ...session, exercises }}
+          initialFormat={sessionFormat}
           onClose={() => {
             setGuiding(false)
             onClose()

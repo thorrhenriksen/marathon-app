@@ -1,30 +1,46 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { completeStrengthSession } from '../lib/completeStrengthSession'
 import { playAudioCue } from '../lib/audioCue'
 import { requestWakeLock, releaseWakeLock } from '../lib/wakeLock'
-import type { Session } from '../types'
+import type { Session, SessionFormat } from '../types'
 import { ExerciseIllustration } from './exerciseIllustrations'
 import { getCatalogEntry } from '../lib/strengthCatalog'
 import { exerciseDose } from '../lib/strengthBlocks'
-
-const DEFAULT_REST_SECONDS = 45
+import {
+  DEFAULT_CIRCUIT_REST_SECONDS,
+  DEFAULT_REST_SECONDS,
+  DEFAULT_SESSION_FORMAT,
+  buildGuidedSteps,
+  perSetDose,
+  progressAfter,
+  resolveResumePoint,
+  restAfterStep,
+  totalRounds,
+} from '../lib/guidedPlan'
+import SessionFormatToggle from './SessionFormatToggle'
 
 interface GuidedStrengthSessionProps {
   session: Session
+  /** Format to start in when the session has no saved progress. */
+  initialFormat?: SessionFormat
   onClose: () => void
 }
 
-export default function GuidedStrengthSession({ session, onClose }: GuidedStrengthSessionProps) {
+export default function GuidedStrengthSession({ session, initialFormat, onClose }: GuidedStrengthSessionProps) {
   const settings = useLiveQuery(() => db.settings.get('settings'), [])
   const exercises = session.exercises ?? []
   const restSeconds = settings?.restTimerSeconds ?? DEFAULT_REST_SECONDS
+  const circuitRestSeconds = settings?.circuitRestSeconds ?? DEFAULT_CIRCUIT_REST_SECONDS
   const audioCueEnabled = settings?.audioCueEnabled ?? true
   const wakeLockPreferred = settings?.wakeLockEnabled ?? true
 
-  const [currentIndex, setCurrentIndex] = useState(session.guidedProgress?.currentExerciseIndex ?? 0)
-  const [completedIds, setCompletedIds] = useState<string[]>(session.guidedProgress?.completedExerciseIds ?? [])
+  const [resume] = useState(() =>
+    resolveResumePoint(exercises, session.guidedProgress, initialFormat ?? DEFAULT_SESSION_FORMAT),
+  )
+  const [format, setFormat] = useState<SessionFormat>(resume.format)
+  const [stepIndex, setStepIndex] = useState(resume.stepIndex)
   const [phase, setPhase] = useState<'exercise' | 'rest'>('exercise')
   // Rest is tracked as a deadline rather than a decrementing counter so the
   // countdown stays correct if the app is backgrounded mid-rest.
@@ -33,9 +49,21 @@ export default function GuidedStrengthSession({ session, onClose }: GuidedStreng
   const [wakeLockActive, setWakeLockActive] = useState(false)
   const [finishing, setFinishing] = useState(false)
 
-  const currentExercise = exercises[currentIndex]
-  const isLastExercise = currentIndex >= exercises.length - 1
+  // Exercise ids are stable for the life of this overlay, so key the memo on them.
+  const exerciseKey = exercises.map((e) => `${e.exerciseId}:${e.sets}:${e.isPlyo ? 1 : 0}`).join('|')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const steps = useMemo(() => buildGuidedSteps(exercises, format), [exerciseKey, format])
+  const rounds = totalRounds(steps)
+  const isCircuit = format === 'circuit'
+
+  const currentStep = steps[stepIndex]
+  const nextStep = steps[stepIndex + 1]
+  const currentExercise = currentStep ? exercises[currentStep.exerciseIndex] : undefined
+  const nextExercise = nextStep ? exercises[nextStep.exerciseIndex] : undefined
+  const isLastStep = stepIndex >= steps.length - 1
   const entry = currentExercise ? getCatalogEntry(currentExercise.exerciseId) : undefined
+  // The format can be switched only before anything has been done.
+  const canSwitchFormat = stepIndex === 0 && phase === 'exercise'
 
   useEffect(() => {
     if (!wakeLockPreferred) return
@@ -68,52 +96,61 @@ export default function GuidedStrengthSession({ session, onClose }: GuidedStreng
   useEffect(() => {
     if (phase !== 'rest' || restEndsAt === null || now < restEndsAt) return
     if (audioCueEnabled) playAudioCue()
-    advanceToNextExercise()
+    advanceToNextStep()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, restEndsAt, now])
 
-  function advanceToNextExercise() {
+  function advanceToNextStep() {
     setRestEndsAt(null)
     setPhase('exercise')
-    setCurrentIndex((i) => i + 1)
+    setStepIndex((i) => i + 1)
   }
 
-  async function persistProgress(nextIndex: number, nextCompletedIds: string[]) {
-    // Mirror guided completions onto the exercise checklist so the manual
-    // view stays in sync if the user exits guided mode early.
+  async function persistProgress(doneSteps: number) {
+    const progress = progressAfter(steps, doneSteps, format, exercises)
+    // Mirror per-set progress onto the stored checklist so the manual view
+    // stays in sync if the user exits guided mode early. Read the stored
+    // list rather than the effective one so display-time filtering (plyos
+    // hidden after a recent injury variant) never rewrites saved exercises.
+    const stored = await db.sessions.get(session.id)
+    const storedExercises = stored?.exercises ?? exercises
     await db.sessions.update(session.id, {
-      exercises: exercises.map((e) => (nextCompletedIds.includes(e.exerciseId) ? { ...e, completed: true } : e)),
-      guidedProgress: { currentExerciseIndex: nextIndex, completedExerciseIds: nextCompletedIds },
+      exercises: storedExercises.map((e) =>
+        progress.completedExerciseIds.includes(e.exerciseId) ? { ...e, completed: true } : e,
+      ),
+      guidedProgress: progress,
     })
   }
 
-  async function handleDoneNext() {
-    if (!currentExercise) return
-    const nextCompletedIds = completedIds.includes(currentExercise.exerciseId)
-      ? completedIds
-      : [...completedIds, currentExercise.exerciseId]
-    setCompletedIds(nextCompletedIds)
+  async function handleChangeFormat(next: SessionFormat) {
+    setFormat(next)
+    await db.settings.update('settings', { strengthSessionFormat: next })
+  }
 
-    if (isLastExercise) {
+  async function handleDoneNext() {
+    if (!currentStep) return
+
+    if (isLastStep) {
       setFinishing(true)
       await completeStrengthSession(session)
       onClose()
       return
     }
 
-    await persistProgress(currentIndex + 1, nextCompletedIds)
-    if (restSeconds <= 0) {
-      advanceToNextExercise()
+    await persistProgress(stepIndex + 1)
+    const rest = restAfterStep(steps, stepIndex, format, restSeconds, circuitRestSeconds)
+    if (rest <= 0) {
+      advanceToNextStep()
       return
     }
     const start = Date.now()
     setNow(start)
-    setRestEndsAt(start + restSeconds * 1000)
+    setRestEndsAt(start + rest * 1000)
     setPhase('rest')
   }
 
   function handleSkipRest() {
-    advanceToNextExercise()
+    advanceToNextStep()
   }
 
   async function toggleWakeLockPreference() {
@@ -128,20 +165,35 @@ export default function GuidedStrengthSession({ session, onClose }: GuidedStreng
     }
   }
 
-  if (!currentExercise) {
+  if (!currentStep || !currentExercise) {
     return null
   }
+
+  const headerLabel = !isCircuit
+    ? `Exercise ${stepIndex + 1} of ${steps.length}`
+    : currentStep.isPrimer
+      ? 'Plyo primer · before the circuit'
+      : `Round ${currentStep.round} of ${rounds}`
+  // During rest the header describes what's coming up.
+  const restHeaderLabel =
+    isCircuit && nextStep && !nextStep.isPrimer ? `Round ${nextStep.round} of ${rounds}` : headerLabel
+  const nextIsNewRound =
+    isCircuit && nextStep && !currentStep.isPrimer && !nextStep.isPrimer && nextStep.round !== currentStep.round
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <div className="flex items-center justify-between px-5 pt-4">
-        <p className="text-xs uppercase tracking-wide text-ink-faint">
-          Exercise {currentIndex + 1} of {exercises.length}
-        </p>
+        <p className="text-xs uppercase tracking-wide text-ink-faint">{phase === 'rest' ? restHeaderLabel : headerLabel}</p>
         <button onClick={onClose} className="rounded-full p-2 text-ink-muted hover:text-ink" aria-label="Close">
           ✕
         </button>
       </div>
+
+      {canSwitchFormat && (
+        <div className="flex justify-center px-5 pt-2">
+          <SessionFormatToggle value={format} onChange={handleChangeFormat} />
+        </div>
+      )}
 
       <div className="flex flex-1 flex-col items-center justify-center gap-5 overflow-y-auto px-5 py-6">
         {phase === 'exercise' ? (
@@ -152,10 +204,19 @@ export default function GuidedStrengthSession({ session, onClose }: GuidedStreng
               {entry && <p className="mt-1 text-sm text-ink-faint">{entry.targetArea}</p>}
             </div>
             <div className="rounded-xl border border-border bg-surface-inset p-3 text-center">
-              <p className="text-xs text-ink-faint">Prescription</p>
-              <p className="mt-1 text-lg font-semibold text-ink">
-                {exerciseDose(currentExercise)}
-              </p>
+              {isCircuit && !currentStep.isPrimer ? (
+                <>
+                  <p className="text-xs text-ink-faint">
+                    Set {currentStep.setNumber} of {currentExercise.sets}
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-ink">{perSetDose(currentExercise)}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-ink-faint">Prescription</p>
+                  <p className="mt-1 text-lg font-semibold text-ink">{exerciseDose(currentExercise)}</p>
+                </>
+              )}
             </div>
             {entry && entry.cues.length > 0 && (
               <ul className="flex w-full max-w-sm flex-col gap-2">
@@ -166,12 +227,23 @@ export default function GuidedStrengthSession({ session, onClose }: GuidedStreng
                 ))}
               </ul>
             )}
+            {isCircuit && nextExercise && (
+              <p className="text-sm text-ink-faint">
+                Next: {nextExercise.name}
+                {nextIsNewRound && ` · round ${nextStep.round}`}
+              </p>
+            )}
           </>
         ) : (
           <div className="flex flex-col items-center gap-3 text-center">
-            <p className="text-xs uppercase tracking-wide text-ink-faint">Rest</p>
+            <p className="text-xs uppercase tracking-wide text-ink-faint">
+              {nextIsNewRound ? 'Rest between rounds' : currentStep.isPrimer && isCircuit ? 'Rest before the circuit' : 'Rest'}
+            </p>
             <p className="text-5xl font-semibold text-ink">{restRemaining}s</p>
-            <p className="text-sm text-ink-faint">Next: {exercises[currentIndex + 1]?.name}</p>
+            <p className="text-sm text-ink-faint">
+              Next: {nextExercise?.name}
+              {isCircuit && nextStep && !nextStep.isPrimer && nextExercise && ` · set ${nextStep.setNumber} of ${nextExercise.sets}`}
+            </p>
           </div>
         )}
       </div>
@@ -197,7 +269,7 @@ export default function GuidedStrengthSession({ session, onClose }: GuidedStreng
             disabled={finishing}
             className="w-full rounded-xl bg-accent py-3 text-base font-semibold text-accent-fg disabled:opacity-60"
           >
-            {isLastExercise ? 'Finish session' : 'Done — next'}
+            {isLastStep ? 'Finish session' : 'Done — next'}
           </button>
         )}
       </div>
