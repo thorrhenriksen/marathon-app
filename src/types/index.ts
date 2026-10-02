@@ -146,6 +146,46 @@ export interface Run {
   linkedSessionId?: string
   /** ISO datetime the run was logged at. Absent for older/legacy entries. */
   loggedAt?: string
+  /** Set when the run was imported from (or linked to) a Strava activity. */
+  stravaActivityId?: number
+}
+
+/** A Strava run activity as cached on-device, reduced to what the import
+ *  card and add-run prefill need. */
+export interface StravaActivity {
+  id: number
+  name: string
+  /** Strava's start_date_local, e.g. "2026-10-01T07:12:00Z" (local wall time despite the Z). */
+  startDateLocal: string
+  distanceMeters: number
+  movingTimeSeconds: number
+}
+
+export interface StravaConnection {
+  accessToken: string
+  refreshToken: string
+  /** Epoch seconds. */
+  expiresAt: number
+  athleteName: string
+  athleteId?: number
+  /** Set when Strava rejected the refresh token — the user must reconnect. */
+  needsReconnect?: boolean
+}
+
+/** Single-row Strava state (id 'strava'). Device-local only; included in backups. */
+export interface StravaState {
+  id: 'strava'
+  connection?: StravaConnection
+  /** Activity ids already imported as (or linked to) a run. */
+  importedActivityIds: number[]
+  /** Activity ids dismissed from the import card — never shown again. */
+  ignoredActivityIds: number[]
+  /** Last successfully fetched window of recent runs (last 14 days). */
+  recentActivities: StravaActivity[]
+  /** ISO datetime of the last fetch attempt, for the 30-minute throttle. */
+  lastFetchAttemptAt?: string
+  /** CSRF state for an in-flight OAuth redirect. */
+  pendingOAuthState?: string
 }
 
 export interface Goal {

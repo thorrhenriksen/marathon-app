@@ -23,6 +23,7 @@ import RecoveryCard from '../components/RecoveryCard'
 import StreakChip from '../components/StreakChip'
 import AchievementCollectCard from '../components/AchievementCollectCard'
 import GoalUnlockCard from '../components/GoalUnlockCard'
+import StravaImportCard from '../components/StravaImportCard'
 
 type CalendarView = 'week' | 'month'
 
@@ -101,6 +102,7 @@ export default function Today() {
 
       <GoalUnlockCard />
       <AchievementCollectCard />
+      <StravaImportCard />
 
       {/* Today's session */}
       <section>

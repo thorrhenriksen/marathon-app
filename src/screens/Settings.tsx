@@ -8,6 +8,8 @@ import { isStoragePersisted } from '../lib/storage'
 import { computeAdjustment, type AdjustmentPreview } from '../lib/adjustmentEngine'
 import { applyTimeOff } from '../db/timeOffAdjustments'
 import { resetToOriginalPlan } from '../db/seed'
+import { exportBackup, parseBackup, restoreBackup } from '../db/backup'
+import { beginStravaConnect, disconnectStrava } from '../db/strava'
 import type { CelebrationStyle, IconPack, TimeOff, TimeOffLabel } from '../types'
 import Modal from '../components/Modal'
 import AdjustmentSummaryModal from '../components/AdjustmentSummaryModal'
@@ -527,6 +529,109 @@ function GuidedSessionPreferencesSection() {
   )
 }
 
+export interface StravaNotice {
+  status: 'pending' | 'ok' | 'error'
+  message: string
+}
+
+function StravaSection({ notice }: { notice?: StravaNotice | null }) {
+  const strava = useLiveQuery(() => db.strava.get('strava'), [])
+  const [message, setMessage] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false)
+  const connection = strava?.connection
+
+  async function handleConnect() {
+    if (busy) return
+    setBusy(true)
+    setMessage(null)
+    const error = await beginStravaConnect()
+    // On success the page navigates away to Strava; only errors land here.
+    if (error) {
+      setMessage(error)
+      setBusy(false)
+    }
+  }
+
+  async function handleDisconnect() {
+    await disconnectStrava()
+    setConfirmingDisconnect(false)
+    setMessage('Disconnected from Strava.')
+  }
+
+  const shownMessage = message ?? notice?.message
+  const messageClass = notice?.status === 'error' && !message ? 'text-danger' : 'text-ink-muted'
+
+  return (
+    <SectionCard title="Strava">
+      <div className="flex flex-col gap-3">
+        {connection ? (
+          <>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-ink">Connected as {connection.athleteName}</p>
+                {strava?.lastFetchAttemptAt && (
+                  <p className="text-xs text-ink-faint">
+                    Last checked{' '}
+                    {new Date(strava.lastFetchAttemptAt).toLocaleString('en-GB', {
+                      weekday: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                )}
+              </div>
+              <button onClick={() => setConfirmingDisconnect(true)} className={`${secondaryButtonClass} shrink-0`}>
+                Disconnect
+              </button>
+            </div>
+            {connection.needsReconnect && (
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-warning/10 p-3">
+                <p className="text-xs text-warning">Strava access has expired.</p>
+                <button onClick={handleConnect} disabled={busy} className={`${primaryButtonClass} shrink-0`}>
+                  Reconnect
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-ink-faint">
+              Runs your watch syncs to Strava show up as cards you can import into your log — you still choose
+              effort and notes.
+            </p>
+            <button onClick={handleConnect} disabled={busy} className={`${primaryButtonClass} disabled:opacity-40`}>
+              {busy ? 'Opening Strava…' : 'Connect Strava'}
+            </button>
+          </>
+        )}
+        {shownMessage && <p className={`text-xs ${messageClass}`}>{shownMessage}</p>}
+        <p className="text-xs text-ink-faint">
+          Your Strava data is fetched directly to this device; nothing is stored on a server.
+        </p>
+      </div>
+
+      {confirmingDisconnect && (
+        <Modal title="Disconnect Strava?" onClose={() => setConfirmingDisconnect(false)}>
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-ink-muted">
+              This removes the Strava tokens from this device. Runs you've already imported stay in your log.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmingDisconnect(false)} className={`${secondaryButtonClass} flex-1`}>
+                Cancel
+              </button>
+              <button onClick={handleDisconnect} className={`${dangerButtonClass} flex-1`}>
+                Disconnect
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </SectionCard>
+  )
+}
+
 function BackupSection() {
   const [message, setMessage] = useState<string | null>(null)
   const [storagePersisted, setStoragePersisted] = useState(true)
@@ -536,23 +641,7 @@ function BackupSection() {
   }, [])
 
   async function handleExport() {
-    const [sessions, runs, goals, timeOff, settings, weeks] = await Promise.all([
-      db.sessions.toArray(),
-      db.runs.toArray(),
-      db.goals.toArray(),
-      db.timeOff.toArray(),
-      db.settings.toArray(),
-      db.weeks.toArray(),
-    ])
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      sessions,
-      runs,
-      goals,
-      timeOff,
-      settings,
-      weeks,
-    }
+    const payload = await exportBackup()
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -569,31 +658,7 @@ function BackupSection() {
     const reader = new FileReader()
     reader.onload = async () => {
       try {
-        const text = String(reader.result)
-        const data = JSON.parse(text)
-        if (!data.sessions || !data.weeks || !data.settings || !data.goals) {
-          throw new Error('This file does not look like a valid backup.')
-        }
-        await db.transaction(
-          'rw',
-          [db.sessions, db.runs, db.goals, db.timeOff, db.settings, db.weeks],
-          async () => {
-            await Promise.all([
-              db.sessions.clear(),
-              db.runs.clear(),
-              db.goals.clear(),
-              db.timeOff.clear(),
-              db.settings.clear(),
-              db.weeks.clear(),
-            ])
-            await db.sessions.bulkAdd(data.sessions)
-            await db.runs.bulkAdd(data.runs ?? [])
-            await db.goals.bulkAdd(data.goals)
-            await db.timeOff.bulkAdd(data.timeOff ?? [])
-            await db.settings.bulkAdd(data.settings)
-            await db.weeks.bulkAdd(data.weeks)
-          },
-        )
+        await restoreBackup(parseBackup(String(reader.result)))
         setMessage('Backup restored.')
       } catch (err) {
         setMessage(err instanceof Error ? err.message : 'Failed to import backup.')
@@ -669,7 +734,7 @@ function ResetPlanSection() {
   )
 }
 
-export default function Settings() {
+export default function Settings({ stravaNotice }: { stravaNotice?: StravaNotice | null }) {
   return (
     <div className="flex flex-col gap-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
       <h1 className="text-lg font-semibold text-ink">Settings</h1>
@@ -680,6 +745,7 @@ export default function Settings() {
       <ThemeSection />
       <CardAccentSection />
       <CosmeticsSection />
+      <StravaSection notice={stravaNotice} />
       <BackupSection />
       <ResetPlanSection />
     </div>

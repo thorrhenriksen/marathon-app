@@ -5,6 +5,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    // Strava's client id is public (it appears in the authorize URL); the
+    // secret stays server-side in api/strava/. Injected from the Vercel env at build.
+    __STRAVA_CLIENT_ID__: JSON.stringify(process.env.STRAVA_CLIENT_ID ?? ''),
+  },
   plugins: [
     react(),
     tailwindcss(),

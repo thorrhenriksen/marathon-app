@@ -7,6 +7,9 @@ import type { Run, SessionType } from '../types'
 import Modal from '../components/Modal'
 import LogRunForm from '../components/LogRunForm'
 import WeekAgenda from '../components/WeekAgenda'
+import PullToRefresh from '../components/PullToRefresh'
+import StravaImportCard from '../components/StravaImportCard'
+import { syncStravaActivities } from '../db/strava'
 
 type TrainViewTab = 'week' | 'log'
 
@@ -109,6 +112,7 @@ function RunRow({ run, onSelect }: { run: Run; onSelect: (run: Run) => void }) {
 export default function Log() {
   const runs = useLiveQuery(() => db.runs.orderBy('date').reverse().toArray(), [])
   const settings = useLiveQuery(() => db.settings.get('settings'), [])
+  const stravaConnected = useLiveQuery(async () => !!(await db.strava.get('strava'))?.connection, [])
   const [showAddForm, setShowAddForm] = useState(false)
   const [selectedRun, setSelectedRun] = useState<Run | null>(null)
 
@@ -129,71 +133,74 @@ export default function Log() {
   const groups = groupByMonth(runs)
 
   return (
-    <div className="flex flex-col gap-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-ink">Train</h1>
-        {tab === 'log' && (
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-fg"
-          >
-            + Add run
-          </button>
-        )}
-      </div>
-
-      <TrainTabs tab={tab} onChange={setTab} />
-
-      {tab === 'week' ? (
-        <WeekAgenda />
-      ) : (
-        <div className="flex flex-col gap-6">
-          {groups.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-ink-faint">
-              No runs logged yet. Tap "Add run" to log your first one.
-            </div>
-          ) : (
-            groups.map((group) => (
-              <section key={group.key}>
-                <div className="mb-2 flex items-baseline justify-between">
-                  <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">
-                    {monthLabel(group.key)}
-                  </h2>
-                  <p className="text-xs text-ink-faint">
-                    {group.totalKm.toFixed(1)} km · {formatDuration(group.totalSeconds)} · {group.runs.length}{' '}
-                    {group.runs.length === 1 ? 'run' : 'runs'}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {group.runs.map((run) => (
-                    <RunRow key={run.id} run={run} onSelect={setSelectedRun} />
-                  ))}
-                </div>
-              </section>
-            ))
+    <PullToRefresh enabled={!!stravaConnected} onRefresh={() => syncStravaActivities({ force: true })}>
+      <div className="flex flex-col gap-4 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-ink">Train</h1>
+          {tab === 'log' && (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-fg"
+            >
+              + Add run
+            </button>
           )}
         </div>
-      )}
 
-      {showAddForm && (
-        <Modal title="Log a run" onClose={() => setShowAddForm(false)}>
-          <LogRunForm
-            session={null}
-            onSaved={() => setShowAddForm(false)}
-            onCancel={() => setShowAddForm(false)}
-          />
-        </Modal>
-      )}
+        <TrainTabs tab={tab} onChange={setTab} />
 
-      {selectedRun && (
-        <Modal title="Edit run" onClose={() => setSelectedRun(null)}>
-          <LogRunForm
-            run={selectedRun}
-            onSaved={() => setSelectedRun(null)}
-            onCancel={() => setSelectedRun(null)}
-          />
-        </Modal>
-      )}
-    </div>
+        {tab === 'week' ? (
+          <WeekAgenda />
+        ) : (
+          <div className="flex flex-col gap-6">
+            <StravaImportCard />
+            {groups.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-ink-faint">
+                No runs logged yet. Tap "Add run" to log your first one.
+              </div>
+            ) : (
+              groups.map((group) => (
+                <section key={group.key}>
+                  <div className="mb-2 flex items-baseline justify-between">
+                    <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">
+                      {monthLabel(group.key)}
+                    </h2>
+                    <p className="text-xs text-ink-faint">
+                      {group.totalKm.toFixed(1)} km · {formatDuration(group.totalSeconds)} · {group.runs.length}{' '}
+                      {group.runs.length === 1 ? 'run' : 'runs'}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {group.runs.map((run) => (
+                      <RunRow key={run.id} run={run} onSelect={setSelectedRun} />
+                    ))}
+                  </div>
+                </section>
+              ))
+            )}
+          </div>
+        )}
+
+        {showAddForm && (
+          <Modal title="Log a run" onClose={() => setShowAddForm(false)}>
+            <LogRunForm
+              session={null}
+              onSaved={() => setShowAddForm(false)}
+              onCancel={() => setShowAddForm(false)}
+            />
+          </Modal>
+        )}
+
+        {selectedRun && (
+          <Modal title="Edit run" onClose={() => setSelectedRun(null)}>
+            <LogRunForm
+              run={selectedRun}
+              onSaved={() => setSelectedRun(null)}
+              onCancel={() => setSelectedRun(null)}
+            />
+          </Modal>
+        )}
+      </div>
+    </PullToRefresh>
   )
 }

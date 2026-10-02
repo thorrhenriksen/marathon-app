@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { celebrate } from '../lib/celebrate'
 import { db } from '../db/db'
 import { deleteRun } from '../db/runs'
+import { markStravaActivityImported } from '../db/strava'
+import type { RunPrefill } from '../lib/strava'
 import DurationInput from './DurationInput'
 import { todayISO } from '../lib/dates'
 import { computePaceSecPerKm, formatPace } from '../lib/paceZones'
@@ -12,6 +14,10 @@ interface LogRunFormProps {
   session?: Session | null
   /** When editing an already-logged run, prefills fields and updates it in place on save. */
   run?: Run | null
+  /** New run prefilled from an imported activity (e.g. Strava). */
+  prefill?: RunPrefill | null
+  /** A scheduled session on the prefill's day the run can complete; offered as a default-on toggle. */
+  suggestedSession?: Session | null
   onSaved: () => void
   onCancel: () => void
 }
@@ -37,18 +43,41 @@ function combineDateAndTime(date: string, time: string): string {
   return new Date(`${date}T${time}:00`).toISOString()
 }
 
-export default function LogRunForm({ session, run, onSaved, onCancel }: LogRunFormProps) {
-  const [date, setDate] = useState(run?.date ?? session?.date ?? todayISO())
+export default function LogRunForm({
+  session: explicitSession,
+  run,
+  prefill,
+  suggestedSession,
+  onSaved,
+  onCancel,
+}: LogRunFormProps) {
+  const [linkSuggested, setLinkSuggested] = useState(!!suggestedSession)
+  const session = explicitSession ?? (linkSuggested ? suggestedSession : null)
+  const [date, setDate] = useState(run?.date ?? prefill?.date ?? session?.date ?? todayISO())
   const [distanceKm, setDistanceKm] = useState(
-    run ? String(run.distanceKm) : session ? String(session.plannedDistanceKm) : '',
+    run
+      ? String(run.distanceKm)
+      : prefill
+        ? String(prefill.distanceKm)
+        : session
+          ? String(session.plannedDistanceKm)
+          : '',
   )
-  const [durationSeconds, setDurationSeconds] = useState(run?.durationSeconds ?? 0)
-  const [time, setTime] = useState(run?.loggedAt ? timeFromISO(run.loggedAt) : timeFromISO(new Date().toISOString()))
+  const [durationSeconds, setDurationSeconds] = useState(run?.durationSeconds ?? prefill?.durationSeconds ?? 0)
+  const [time, setTime] = useState(
+    run?.loggedAt ? timeFromISO(run.loggedAt) : (prefill?.time ?? timeFromISO(new Date().toISOString())),
+  )
   const [effort, setEffort] = useState(run?.effort ?? 5)
   const [note, setNote] = useState(run?.note ?? '')
   const [type, setType] = useState<SessionType | 'other'>(
     run ? run.type : session && session.type !== 'rest' ? session.type : 'easy',
   )
+
+  function toggleLinkSuggested() {
+    const next = !linkSuggested
+    setLinkSuggested(next)
+    if (suggestedSession) setType(next ? suggestedSession.type : 'easy')
+  }
   const [saving, setSaving] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -87,7 +116,9 @@ export default function LogRunForm({ session, run, onSaved, onCancel }: LogRunFo
           note: note.trim() || undefined,
           linkedSessionId: session?.id,
           loggedAt,
+          stravaActivityId: prefill?.stravaActivityId,
         })
+        if (prefill) await markStravaActivityImported(prefill.stravaActivityId)
         if (session) {
           await db.sessions.update(session.id, { status: 'completed', linkedRunId: runId })
           celebrate()
@@ -164,6 +195,19 @@ export default function LogRunForm({ session, run, onSaved, onCancel }: LogRunFo
         <p className="text-sm text-ink-muted">
           Pace: <span className="text-ink">{formatPace(pace)}</span>
         </p>
+      )}
+
+      {suggestedSession && !explicitSession && (
+        <label className="flex items-center gap-3 rounded-lg border border-border bg-surface-inset px-3 py-3">
+          <input type="checkbox" checked={linkSuggested} onChange={toggleLinkSuggested} className="h-4 w-4" />
+          <span className="text-sm text-ink">
+            Complete the planned{' '}
+            <span className="font-medium">
+              {suggestedSession.type} {suggestedSession.plannedDistanceKm} km
+            </span>{' '}
+            session
+          </span>
+        </label>
       )}
 
       <div>

@@ -3,7 +3,7 @@ import Today from './screens/Today'
 import Plan from './screens/Plan'
 import Log from './screens/Log'
 import Progress from './screens/Progress'
-import Settings from './screens/Settings'
+import Settings, { type StravaNotice } from './screens/Settings'
 import { seedDatabaseIfEmpty } from './db/seed'
 import { runWeekRebaseMigration } from './db/weekRebaseMigration'
 import { runCoinEconomyMigration } from './db/coinEconomyMigration'
@@ -11,6 +11,8 @@ import { runGoalEngineMigration } from './db/goalEngineMigration'
 import { runStrengthPeriodizationMigration } from './db/strengthPeriodizationMigration'
 import { runWeek6VariantMigration } from './db/week6VariantMigration'
 import { requestPersistentStorage } from './lib/storage'
+import { parseCallback } from './lib/strava'
+import { completeStravaConnect, syncStravaActivities } from './db/strava'
 import { SessionDetailProvider } from './context/SessionDetailContext'
 import UpdateBanner from './components/UpdateBanner'
 import CelebrationHost from './components/CelebrationHost'
@@ -83,9 +85,17 @@ const TABS: TabDef[] = [
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ]
 
+// Read once at module load: the OAuth redirect lands on /?strava=callback&code=…
+// and must be handled exactly once, even if StrictMode re-runs effects.
+const initialStravaCallback = parseCallback(window.location.search)
+let stravaCallbackHandled = false
+
 function App() {
   const [ready, setReady] = useState(false)
-  const [activeTab, setActiveTab] = useState<Tab>('today')
+  const [activeTab, setActiveTab] = useState<Tab>(initialStravaCallback ? 'settings' : 'today')
+  const [stravaNotice, setStravaNotice] = useState<StravaNotice | null>(
+    initialStravaCallback ? { status: 'pending', message: 'Connecting to Strava…' } : null,
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -98,11 +108,32 @@ function App() {
       await runWeek6VariantMigration()
       await requestPersistentStorage()
       if (!cancelled) setReady(true)
+      // Strava is an optional accelerator: kicked off after the app is ready, never awaited.
+      if (initialStravaCallback && !stravaCallbackHandled) {
+        stravaCallbackHandled = true
+        // Drop the one-time code from the URL so a reload can't replay it.
+        window.history.replaceState(null, '', window.location.pathname)
+        completeStravaConnect(initialStravaCallback).then((result) => {
+          setStravaNotice({ status: result.ok ? 'ok' : 'error', message: result.message })
+          if (result.ok) syncStravaActivities({ force: true })
+        })
+      } else if (!initialStravaCallback) {
+        syncStravaActivities()
+      }
     }
     init()
     return () => {
       cancelled = true
     }
+  }, [])
+
+  // Returning a home-screen PWA from the background counts as opening the app (still throttled).
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') syncStravaActivities()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
   if (!ready) {
@@ -123,7 +154,7 @@ function App() {
           {activeTab === 'plan' && <Plan />}
           {activeTab === 'log' && <Log />}
           {activeTab === 'progress' && <Progress />}
-          {activeTab === 'settings' && <Settings />}
+          {activeTab === 'settings' && <Settings stravaNotice={stravaNotice} />}
         </SessionDetailProvider>
       </div>
 
